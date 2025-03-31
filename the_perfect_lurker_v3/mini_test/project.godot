@@ -1,0 +1,57 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="lurker-race"
+run/main_scene="res://main.tscn"
+config/features=PackedStringArray("4.1", "GL Compatibility")
+boot_splash/show_image=false
+
+[autoload]
+
+debugger="*res://events/debugger.tscn"
+
+[debug]
+
+gdscript/warnings/unassigned_variable=2
+gdscript/warnings/unassigned_variable_op_assign=2
+gdscript/warnings/unused_variable=2
+gdscript/warnings/unused_local_constant=2
+gdscript/warnings/unused_private_class_variable=2
+gdscript/warnings/unused_parameter=2
+gdscript/warnings/unused_signal=2
+gdscript/warnings/shadowed_variable=2
+gdscript/warnings/shadowed_variable_base_class=2
+gdscript/warnings/shadowed_global_identifier=2
+gdscript/warnings/unreachable_code=2
+gdscript/warnings/unreachable_pattern=2
+gdscript/warnings/standalone_expression=2
+gdscript/warnings/standalone_ternary=2
+gdscript/warnings/incompatible_ternary=2
+gdscript/warnings/property_used_as_function=2
+gdscript/warnings/constant_used_as_function=2
+gdscript/warnings/function_used_as_property=2
+
+[display]
+
+window/size/viewport_width=1920
+window/size/viewport_height=1080
+window/size/borderless=true
+window/stretch/mode="viewport"
+
+[editor]
+
+movie_writer/movie_file="/home/ronnie/projects/miniscruff/lurker-race/sample.avi"
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"

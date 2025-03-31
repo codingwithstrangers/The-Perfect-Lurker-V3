@@ -1,0 +1,25 @@
+[gd_scene load_steps=4 format=3 uid="uid://qcha3mr66hu8"]
+
+[ext_resource type="Script" path="res://trap/traps.gd" id="1_s1xdc"]
+[ext_resource type="Texture2D" uid="uid://4lhiy5fpbe5o" path="res://trap/oil.png" id="2_pvigq"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_sj270"]
+radius = 30.0
+
+[node name="trap_area" type="Area2D" node_paths=PackedStringArray("trap_root", "sprite")]
+collision_layer = 2
+input_pickable = false
+monitorable = false
+script = ExtResource("1_s1xdc")
+slide_time = 0.4
+drop_safe_time = 5.0
+trap_root = NodePath(".")
+sprite = NodePath("trap_sprite")
+
+[node name="trap_sprite" type="Sprite2D" parent="."]
+texture = ExtResource("2_pvigq")
+
+[node name="circle_shape" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_sj270")
+
+[connection signal="area_entered" from="." to="." method="_on_trap_area_area_entered"]

@@ -1,0 +1,24 @@
+[gd_scene load_steps=2 format=3 uid="uid://wkjmp0887831"]
+
+[ext_resource type="Script" path="res://events/debug_line.gd" id="1_c8p5c"]
+
+[node name="debug_line" type="HBoxContainer"]
+script = ExtResource("1_c8p5c")
+
+[node name="debug_enable" type="CheckButton" parent="."]
+layout_mode = 2
+
+[node name="debug_key" type="Label" parent="."]
+layout_mode = 2
+text = "lurker_miniscruff_speed"
+
+[node name="separator" type="Label" parent="."]
+layout_mode = 2
+text = "|"
+
+[node name="debug_value" type="Label" parent="."]
+visible = false
+layout_mode = 2
+text = "0"
+
+[connection signal="toggled" from="debug_enable" to="." method="_on_enable_pressed"]

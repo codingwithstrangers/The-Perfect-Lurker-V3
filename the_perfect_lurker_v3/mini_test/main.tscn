@@ -1,0 +1,371 @@
+[gd_scene load_steps=19 format=3 uid="uid://brlanoyshjsn5"]
+
+[ext_resource type="Texture2D" uid="uid://cy0t4ufpxew64" path="res://scenary/road_horizontal.png" id="1_67h6l"]
+[ext_resource type="Texture2D" uid="uid://bcxas47i57rpq" path="res://scenary/road_vertical.png" id="2_l0882"]
+[ext_resource type="Texture2D" uid="uid://dwcadnnww14cs" path="res://scenary/road_corner.png" id="3_08gnq"]
+[ext_resource type="PackedScene" uid="uid://8wic177nek8f" path="res://lurkers/lurker_root.tscn" id="5_6iwvi"]
+[ext_resource type="Script" path="res://events/event_stream.gd" id="6_24hdv"]
+[ext_resource type="Texture2D" uid="uid://bnkxpnh3md50e" path="res://scenary/road_checkered.png" id="7_puk8d"]
+[ext_resource type="Script" path="res://events/faker.gd" id="8_lbh5e"]
+[ext_resource type="Script" path="res://lurkers/lurker_gang.gd" id="8_pj5m8"]
+[ext_resource type="Script" path="res://trap/trap_dropper.gd" id="9_bmp00"]
+[ext_resource type="Texture2D" uid="uid://utaxwi8mqemf" path="res://trap/cone_down.png" id="10_gum0q"]
+[ext_resource type="Texture2D" uid="uid://01ksnemfhmls" path="res://trap/cone_straight.png" id="11_w25ea"]
+[ext_resource type="Texture2D" uid="uid://4lhiy5fpbe5o" path="res://trap/oil.png" id="12_n7tv0"]
+[ext_resource type="PackedScene" uid="uid://qcha3mr66hu8" path="res://trap/trap.tscn" id="13_l7mv5"]
+[ext_resource type="Script" path="res://missle/missle_launcher.gd" id="14_8sav2"]
+[ext_resource type="PackedScene" uid="uid://dx46qdkoqpc3k" path="res://missle/missle.tscn" id="15_scdoy"]
+[ext_resource type="Script" path="res://twitch/twitch_events.gd" id="16_m577l"]
+[ext_resource type="Script" path="res://twitch/login.gd" id="16_tp1g1"]
+
+[sub_resource type="Curve2D" id="Curve2D_3rbyb"]
+_data = {
+"points": PackedVector2Array(-335.805, -0.752386, 335.805, 0.752386, 1555.82, 1012.94, -3.35756, 134.672, 3.35756, -134.672, 1878, 782.947, -2.99826, 158.753, 2.99826, -158.753, 1873.99, 285.811, 147.664, 2.25716, -147.664, -2.25716, 1637.86, 76.9137, 222.621, 2.25716, -222.621, -2.25716, 291.125, 73.9008, -0.749565, -188.849, 0.749565, 188.849, 44.9896, 341.049, 0.944393, -171.578, -0.944393, 171.578, 41.9879, 739.762, -220.043, -4.73974, 220.043, 4.73974, 280.119, 1023.98, 0, 0, 0, 0, 1555.82, 1012.94)
+}
+point_count = 9
+
+[node name="root" type="Node2D"]
+metadata/_edit_vertical_guides_ = [1920.0]
+
+[node name="track" type="Node2D" parent="."]
+
+[node name="RoadAsphalt08" type="Sprite2D" parent="track"]
+position = Vector2(704, 992)
+texture = ExtResource("1_67h6l")
+
+[node name="RoadAsphalt09" type="Sprite2D" parent="track"]
+position = Vector2(832, 992)
+texture = ExtResource("1_67h6l")
+
+[node name="RoadAsphalt22" type="Sprite2D" parent="track"]
+position = Vector2(448, 992)
+texture = ExtResource("1_67h6l")
+
+[node name="RoadAsphalt32" type="Sprite2D" parent="track"]
+position = Vector2(192, 96)
+texture = ExtResource("1_67h6l")
+
+[node name="RoadAsphalt33" type="Sprite2D" parent="track"]
+position = Vector2(320, 96)
+texture = ExtResource("1_67h6l")
+
+[node name="RoadAsphalt34" type="Sprite2D" parent="track"]
+position = Vector2(448, 96)
+texture = ExtResource("1_67h6l")
+
+[node name="RoadAsphalt35" type="Sprite2D" parent="track"]
+position = Vector2(576, 96)
+texture = ExtResource("1_67h6l")
+
+[node name="RoadAsphalt36" type="Sprite2D" parent="track"]
+position = Vector2(704, 96)
+texture = ExtResource("1_67h6l")
+
+[node name="RoadAsphalt37" type="Sprite2D" parent="track"]
+position = Vector2(832, 96)
+texture = ExtResource("1_67h6l")
+
+[node name="RoadAsphalt38" type="Sprite2D" parent="track"]
+position = Vector2(960, 96)
+texture = ExtResource("1_67h6l")
+
+[node name="RoadAsphalt39" type="Sprite2D" parent="track"]
+position = Vector2(1088, 96)
+texture = ExtResource("1_67h6l")
+
+[node name="RoadAsphalt40" type="Sprite2D" parent="track"]
+position = Vector2(1216, 96)
+texture = ExtResource("1_67h6l")
+
+[node name="RoadAsphalt41" type="Sprite2D" parent="track"]
+position = Vector2(1344, 96)
+texture = ExtResource("1_67h6l")
+
+[node name="RoadAsphalt42" type="Sprite2D" parent="track"]
+position = Vector2(1472, 96)
+texture = ExtResource("1_67h6l")
+
+[node name="RoadAsphalt44" type="Sprite2D" parent="track"]
+position = Vector2(1600, 96)
+texture = ExtResource("1_67h6l")
+
+[node name="RoadAsphalt46" type="Sprite2D" parent="track"]
+position = Vector2(1728, 96)
+texture = ExtResource("1_67h6l")
+
+[node name="RoadAsphalt23" type="Sprite2D" parent="track"]
+position = Vector2(576, 992)
+texture = ExtResource("1_67h6l")
+
+[node name="RoadAsphalt24" type="Sprite2D" parent="track"]
+position = Vector2(192, 992)
+texture = ExtResource("1_67h6l")
+
+[node name="RoadAsphalt25" type="Sprite2D" parent="track"]
+position = Vector2(320, 992)
+texture = ExtResource("1_67h6l")
+
+[node name="RoadAsphalt19" type="Sprite2D" parent="track"]
+position = Vector2(1856, 608)
+texture = ExtResource("2_l0882")
+
+[node name="RoadAsphalt20" type="Sprite2D" parent="track"]
+position = Vector2(1856, 736)
+texture = ExtResource("2_l0882")
+
+[node name="RoadAsphalt21" type="Sprite2D" parent="track"]
+position = Vector2(1856, 864)
+texture = ExtResource("2_l0882")
+
+[node name="RoadAsphalt29" type="Sprite2D" parent="track"]
+position = Vector2(1856, 224)
+texture = ExtResource("2_l0882")
+
+[node name="RoadAsphalt30" type="Sprite2D" parent="track"]
+position = Vector2(1856, 352)
+texture = ExtResource("2_l0882")
+
+[node name="RoadAsphalt31" type="Sprite2D" parent="track"]
+position = Vector2(1856, 480)
+texture = ExtResource("2_l0882")
+
+[node name="RoadAsphalt06" type="Sprite2D" parent="track"]
+position = Vector2(64, 864)
+texture = ExtResource("2_l0882")
+
+[node name="RoadAsphalt12" type="Sprite2D" parent="track"]
+position = Vector2(64, 736)
+texture = ExtResource("2_l0882")
+
+[node name="RoadAsphalt13" type="Sprite2D" parent="track"]
+position = Vector2(64, 608)
+texture = ExtResource("2_l0882")
+
+[node name="RoadAsphalt14" type="Sprite2D" parent="track"]
+position = Vector2(64, 480)
+texture = ExtResource("2_l0882")
+
+[node name="RoadAsphalt15" type="Sprite2D" parent="track"]
+position = Vector2(64, 352)
+texture = ExtResource("2_l0882")
+
+[node name="RoadAsphalt16" type="Sprite2D" parent="track"]
+position = Vector2(64, 224)
+texture = ExtResource("2_l0882")
+
+[node name="RoadAsphalt03" type="Sprite2D" parent="track"]
+position = Vector2(1088, 992)
+texture = ExtResource("1_67h6l")
+
+[node name="RoadAsphalt10" type="Sprite2D" parent="track"]
+position = Vector2(1216, 992)
+texture = ExtResource("1_67h6l")
+
+[node name="RoadAsphalt11" type="Sprite2D" parent="track"]
+position = Vector2(1344, 992)
+texture = ExtResource("1_67h6l")
+
+[node name="RoadAsphalt26" type="Sprite2D" parent="track"]
+position = Vector2(1472, 992)
+texture = ExtResource("1_67h6l")
+
+[node name="RoadAsphalt27" type="Sprite2D" parent="track"]
+position = Vector2(960, 992)
+texture = ExtResource("1_67h6l")
+
+[node name="RoadAsphalt28" type="Sprite2D" parent="track"]
+position = Vector2(1728, 992)
+texture = ExtResource("1_67h6l")
+
+[node name="RoadAsphalt04" type="Sprite2D" parent="track"]
+position = Vector2(64, 96)
+rotation = -1.5708
+texture = ExtResource("3_08gnq")
+
+[node name="RoadAsphalt07" type="Sprite2D" parent="track"]
+position = Vector2(1856, 96)
+texture = ExtResource("3_08gnq")
+
+[node name="RoadAsphalt43" type="Sprite2D" parent="track"]
+position = Vector2(64, 992)
+rotation = 3.14159
+texture = ExtResource("3_08gnq")
+
+[node name="RoadAsphalt45" type="Sprite2D" parent="track"]
+position = Vector2(1856, 992)
+rotation = 1.5708
+texture = ExtResource("3_08gnq")
+
+[node name="RoadAsphalt47" type="Sprite2D" parent="track"]
+position = Vector2(1600, 992)
+texture = ExtResource("7_puk8d")
+
+[node name="track_path" type="Path2D" parent="."]
+position = Vector2(0.0351257, 0.416756)
+scale = Vector2(0.999451, 0.995704)
+curve = SubResource("Curve2D_3rbyb")
+
+[node name="managers" type="Node" parent="."]
+
+[node name="event_stream" type="Node" parent="managers"]
+script = ExtResource("6_24hdv")
+
+[node name="faker" type="Node" parent="managers" node_paths=PackedStringArray("event_stream", "timer")]
+script = ExtResource("8_lbh5e")
+event_stream = NodePath("../event_stream")
+timer = NodePath("event_timer")
+enabled = true
+
+[node name="event_timer" type="Timer" parent="managers/faker"]
+autostart = true
+
+[node name="lurker_gang" type="Node" parent="managers"]
+script = ExtResource("8_pj5m8")
+lurker_prefab = ExtResource("5_6iwvi")
+
+[node name="traps" type="Node" parent="managers"]
+script = ExtResource("9_bmp00")
+trap_textures = Array[Texture2D]([ExtResource("10_gum0q"), ExtResource("11_w25ea"), ExtResource("12_n7tv0")])
+drop_distance = 80.0
+drop_time = 0.25
+trap_prefab = ExtResource("13_l7mv5")
+
+[node name="missle_launcher" type="Node" parent="managers"]
+script = ExtResource("14_8sav2")
+missle_prefab = ExtResource("15_scdoy")
+missle_textures = Array[Texture2D]([ExtResource("12_n7tv0")])
+
+[node name="twitch_events" type="Node" parent="managers"]
+script = ExtResource("16_m577l")
+text_commands_enabled = true
+command_prefixes = Array[String]([])
+scopes = Array[String](["chat:edit", "chat:read", "channel:read:redemptions"])
+disk_cache = true
+
+[node name="ui_root" type="MarginContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = 1920.0
+offset_bottom = 1080.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="background" type="ColorRect" parent="ui_root"]
+layout_mode = 2
+color = Color(0.188235, 0.196078, 0.203922, 1)
+
+[node name="form_root" type="CenterContainer" parent="ui_root"]
+layout_mode = 2
+script = ExtResource("16_tp1g1")
+
+[node name="login_root" type="GridContainer" parent="ui_root/form_root"]
+layout_mode = 2
+columns = 2
+
+[node name="client_id_label" type="Label" parent="ui_root/form_root/login_root"]
+layout_mode = 2
+text = "Client ID:"
+horizontal_alignment = 2
+
+[node name="client_id_edit" type="LineEdit" parent="ui_root/form_root/login_root"]
+custom_minimum_size = Vector2(250, 0)
+layout_mode = 2
+placeholder_text = "bot client id"
+expand_to_text_length = true
+clear_button_enabled = true
+caret_blink = true
+
+[node name="client_secret_label" type="Label" parent="ui_root/form_root/login_root"]
+layout_mode = 2
+text = "Client Secret:"
+horizontal_alignment = 2
+
+[node name="client_secret_edit" type="LineEdit" parent="ui_root/form_root/login_root"]
+custom_minimum_size = Vector2(250, 0)
+layout_mode = 2
+placeholder_text = "bot secret"
+secret = true
+expand_to_text_length = true
+clear_button_enabled = true
+caret_blink = true
+
+[node name="channel_label" type="Label" parent="ui_root/form_root/login_root"]
+layout_mode = 2
+text = "Channel:"
+horizontal_alignment = 2
+
+[node name="channel_edit" type="LineEdit" parent="ui_root/form_root/login_root"]
+custom_minimum_size = Vector2(250, 0)
+layout_mode = 2
+placeholder_text = "channel name"
+expand_to_text_length = true
+clear_button_enabled = true
+caret_blink = true
+
+[node name="empty_space_001" type="Control" parent="ui_root/form_root/login_root"]
+layout_mode = 2
+
+[node name="login_button" type="Button" parent="ui_root/form_root/login_root"]
+layout_mode = 2
+text = "Login"
+
+[node name="rewards_root" type="GridContainer" parent="ui_root/form_root"]
+visible = false
+layout_mode = 2
+columns = 2
+
+[node name="join_reward_label" type="Label" parent="ui_root/form_root/rewards_root"]
+layout_mode = 2
+text = "Join Race:"
+horizontal_alignment = 2
+
+[node name="join_reward_edit" type="LineEdit" parent="ui_root/form_root/rewards_root"]
+custom_minimum_size = Vector2(250, 0)
+layout_mode = 2
+placeholder_text = "join race reward id"
+expand_to_text_length = true
+clear_button_enabled = true
+caret_blink = true
+
+[node name="trap_reward_label" type="Label" parent="ui_root/form_root/rewards_root"]
+layout_mode = 2
+text = "Trap Reward:"
+horizontal_alignment = 2
+
+[node name="trap_reward_edit" type="LineEdit" parent="ui_root/form_root/rewards_root"]
+custom_minimum_size = Vector2(250, 0)
+layout_mode = 2
+placeholder_text = "trap reward id"
+expand_to_text_length = true
+clear_button_enabled = true
+caret_blink = true
+
+[node name="missle_label" type="Label" parent="ui_root/form_root/rewards_root"]
+layout_mode = 2
+text = "Missle Reward:"
+horizontal_alignment = 2
+
+[node name="missle_edit" type="LineEdit" parent="ui_root/form_root/rewards_root"]
+custom_minimum_size = Vector2(250, 0)
+layout_mode = 2
+placeholder_text = "missle reward id"
+expand_to_text_length = true
+clear_button_enabled = true
+caret_blink = true
+
+[node name="empty_space_001" type="Control" parent="ui_root/form_root/rewards_root"]
+layout_mode = 2
+
+[node name="start_button" type="Button" parent="ui_root/form_root/rewards_root"]
+layout_mode = 2
+text = "Start"
+
+[connection signal="twitch_connected" from="managers/twitch_events" to="ui_root/form_root/login_root" method="set_visible" binds= [false]]
+[connection signal="twitch_connected" from="managers/twitch_events" to="ui_root/form_root/rewards_root" method="set_visible" binds= [true]]
+[connection signal="pressed" from="ui_root/form_root/login_root/login_button" to="ui_root/form_root" method="_on_login_attempt"]
+[connection signal="pressed" from="ui_root/form_root/login_root/login_button" to="ui_root/form_root/login_root/login_button" method="set_disabled" binds= [true]]
+[connection signal="pressed" from="ui_root/form_root/rewards_root/start_button" to="ui_root/form_root" method="_on_rewards_saved"]
+[connection signal="pressed" from="ui_root/form_root/rewards_root/start_button" to="ui_root" method="set_visible" binds= [false]]

@@ -1,0 +1,44 @@
+[gd_scene load_steps=3 format=3 uid="uid://cb5w2ohs5f8vr"]
+
+[ext_resource type="Script" path="res://events/debugger.gd" id="1_ts8ns"]
+[ext_resource type="PackedScene" uid="uid://wkjmp0887831" path="res://events/debug_line.tscn" id="2_iadl6"]
+
+[node name="debugger" type="PanelContainer"]
+visible = false
+z_index = 1000
+z_as_relative = false
+clip_contents = true
+offset_right = 644.0
+offset_bottom = 446.0
+script = ExtResource("1_ts8ns")
+debug_line_prefab = ExtResource("2_iadl6")
+
+[node name="scroll_container" type="ScrollContainer" parent="."]
+layout_mode = 2
+
+[node name="vertical_container" type="VBoxContainer" parent="scroll_container"]
+layout_mode = 2
+
+[node name="debugger_header" type="HBoxContainer" parent="scroll_container/vertical_container"]
+layout_mode = 2
+
+[node name="close_button" type="Button" parent="scroll_container/vertical_container/debugger_header"]
+layout_mode = 2
+text = "Close"
+
+[node name="clear_button" type="Button" parent="scroll_container/vertical_container/debugger_header"]
+layout_mode = 2
+text = "Clear"
+
+[node name="enable_all_button" type="Button" parent="scroll_container/vertical_container/debugger_header"]
+layout_mode = 2
+text = "Enable All"
+
+[node name="disable_all_button" type="Button" parent="scroll_container/vertical_container/debugger_header"]
+layout_mode = 2
+text = "Disable All"
+
+[connection signal="pressed" from="scroll_container/vertical_container/debugger_header/close_button" to="." method="_on_close_pressed"]
+[connection signal="pressed" from="scroll_container/vertical_container/debugger_header/clear_button" to="." method="_on_clear_pressed"]
+[connection signal="pressed" from="scroll_container/vertical_container/debugger_header/enable_all_button" to="." method="_on_enable_all_pressed"]
+[connection signal="pressed" from="scroll_container/vertical_container/debugger_header/disable_all_button" to="." method="_on_disable_all_pressed"]
