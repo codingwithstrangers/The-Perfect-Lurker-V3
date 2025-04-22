@@ -3,4 +3,4 @@
 /android/
 .env/
 auth.txt/
-# addons/gift/example/auth.txt
+addons/gift/example/auth.txt
