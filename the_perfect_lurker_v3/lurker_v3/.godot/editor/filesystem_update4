@@ -1,0 +1,8 @@
+res://addons/gift/gift.gd
+res://addons/gift/gift_node.gd
+res://addons/gift/git.gd
+res://addons/gift/example/ChatContainer.gd
+res://addons/gift/example/Gift.gd
+res://addons/gift/util/cmd_data.gd
+res://addons/gift/util/cmd_info.gd
+res://addons/gift/util/sender_data.gd
