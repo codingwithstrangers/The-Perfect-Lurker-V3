@@ -12,7 +12,7 @@ config_version=5
 
 config/name="lurker-race"
 run/main_scene="res://main.tscn"
-config/features=PackedStringArray("4.1", "GL Compatibility")
+config/features=PackedStringArray("4.4", "GL Compatibility")
 boot_splash/show_image=false
 
 [autoload]
@@ -27,7 +27,6 @@ gdscript/warnings/unused_variable=2
 gdscript/warnings/unused_local_constant=2
 gdscript/warnings/unused_private_class_variable=2
 gdscript/warnings/unused_parameter=2
-gdscript/warnings/unused_signal=2
 gdscript/warnings/shadowed_variable=2
 gdscript/warnings/shadowed_variable_base_class=2
 gdscript/warnings/shadowed_global_identifier=2
@@ -42,14 +41,18 @@ gdscript/warnings/function_used_as_property=2
 
 [display]
 
-window/size/viewport_width=1920
-window/size/viewport_height=1080
+window/size/viewport_width=800
+window/size/viewport_height=800
 window/size/borderless=true
 window/stretch/mode="viewport"
 
 [editor]
 
 movie_writer/movie_file="/home/ronnie/projects/miniscruff/lurker-race/sample.avi"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/gift/plugin.cfg")
 
 [rendering]
 

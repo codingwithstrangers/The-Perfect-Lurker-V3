@@ -1,6 +1,7 @@
 # Godot 4+ specific ignores
-# .godot/
+.godot/
 /android/
 .env/
 auth.txt/
 addons/gift/example/auth.txt
+G:\strangest_coding_projects\the_perfect_lurker_v3\lurker_v3\addons\gift\example\auth.txt

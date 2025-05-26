@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://wkjmp0887831"]
 
-[ext_resource type="Script" path="res://events/debug_line.gd" id="1_c8p5c"]
+[ext_resource type="Script" uid="uid://c4r5wgd5et4o8" path="res://events/debug_line.gd" id="1_c8p5c"]
 
 [node name="debug_line" type="HBoxContainer"]
 script = ExtResource("1_c8p5c")
