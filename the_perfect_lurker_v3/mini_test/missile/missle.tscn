@@ -1,0 +1,32 @@
+[gd_scene load_steps=5 format=3 uid="uid://dx46qdkoqpc3k"]
+
+[ext_resource type="Script" uid="uid://b27tfumw767is" path="res://missile/missle.gd" id="1_7lp1g"]
+[ext_resource type="Texture2D" path="res://trap/cone_straight.png" id="2_mj5o8"]
+[ext_resource type="Script" uid="uid://c7b72x1heogae" path="res://trap/traps.gd" id="3_7tmf8"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_lyt1p"]
+
+[node name="missle_follow" type="PathFollow2D"]
+rotation = 0.00224052
+script = ExtResource("1_7lp1g")
+speed = 500.0
+
+[node name="missle_sprite" type="Sprite2D" parent="."]
+rotation = -0.00224052
+scale = Vector2(1.00055, 1.00431)
+texture = ExtResource("2_mj5o8")
+
+[node name="missle_area" type="Area2D" parent="." node_paths=PackedStringArray("trap_root", "sprite")]
+collision_layer = 2
+input_pickable = false
+monitorable = false
+script = ExtResource("3_7tmf8")
+slide_time = 0.5
+drop_safe_time = 5.0
+trap_root = NodePath("..")
+sprite = NodePath("../missle_sprite")
+
+[node name="missle_collision" type="CollisionShape2D" parent="missle_area"]
+shape = SubResource("CircleShape2D_lyt1p")
+
+[connection signal="area_entered" from="missle_area" to="missle_area" method="_on_trap_area_area_entered"]

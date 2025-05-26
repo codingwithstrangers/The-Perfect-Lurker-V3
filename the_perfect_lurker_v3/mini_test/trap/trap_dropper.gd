@@ -5,7 +5,7 @@ class_name TrapDropper
 @export var drop_distance: float
 @export_range(0, 1) var drop_time: float
 @export var trap_prefab: PackedScene
-
+@onready var track_manager: TrackManager = $"../track_manager"
 @onready var lurker_gang: LurkerGang = $'../lurker_gang'
 @onready var event_stream: EventStream = $'../event_stream'
 @onready var track_path: Path2D = $'../../track_path'
@@ -31,7 +31,7 @@ func _on_trap_drop_attempted(username: String):
 	trap.position = lurker.position
 	trap.dropped_by = username
 	
-	var trap_pos = track_path.curve.sample_baked(lurker.progress - self.drop_distance)
+	var trap_pos = track_manager.track.curve.sample_baked(lurker.progress - self.drop_distance)
 	var tween = new_trap.create_tween()
 	var pos_tween = tween.tween_property(new_trap, "position", trap_pos, self.drop_time)
 	pos_tween.set_ease(Tween.EASE_IN)

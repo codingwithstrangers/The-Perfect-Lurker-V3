@@ -2,9 +2,8 @@ extends Node
 class_name LurkerGang
 
 @export var lurker_prefab: PackedScene
-
 @onready var event_stream: EventStream = $'../event_stream'
-@onready var root_path: Path2D = $'../../track_path'
+@onready var track_manager: TrackManager = $"../track_manager"
 
 
 # string: Lurker
@@ -14,6 +13,7 @@ func _ready():
 	event_stream.join_race_attempted.connect(self._on_join_race_attempted)
 	event_stream.leave_race_attempted.connect(self._on_leave_race_attempted)
 	event_stream.lurker_chat.connect(self._on_lurker_chat)
+	
 
 func _on_join_race_attempted(username: String, profile_url: String):
 	print(username, " is joining the race")
@@ -79,7 +79,7 @@ func spawn_lurker(username: String, url: String, image: Image):
 	print("spawning lurker: ", username)
 	
 	var new_lurker = lurker_prefab.instantiate()
-	root_path.add_child(new_lurker)
+	track_manager.track.add_child(new_lurker)
 	
 	var lurker = new_lurker.get_node(".") as Lurker
 	lurkers[username] = lurker

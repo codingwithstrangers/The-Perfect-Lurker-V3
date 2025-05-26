@@ -13,6 +13,7 @@ var steps = [
 	func(): event_stream.missle_launch_attempted.emit("miniscruff"),
 	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
 	func(): event_stream.lurker_chat.emit("codingwithstrangers"),
+	func(): event_stream.send_to_pit.emit("codingwithstrangers"),
 	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
 	func(): event_stream.trap_drop_attempted.emit("miniscruff"),
 	func(): event_stream.missle_launch_attempted.emit("codingwithstrangers"),
@@ -21,6 +22,7 @@ var steps = [
 	func(): event_stream.join_race_attempted.emit("codingwithstrangers", "https://static-cdn.jtvnw.net/jtv_user_pictures/dc386d21-87c4-498e-8d53-bad77fc23141-profile_image-300x300.png"),
 	func(): event_stream.join_race_attempted.emit("miniscruff", "ignored"),
 	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
+	
 ]
 
 func _ready():
@@ -35,4 +37,3 @@ func _on_timer_tick() -> void:
 	if index >= steps.size():
 		timer.stop()
 		print("faker complete")
-

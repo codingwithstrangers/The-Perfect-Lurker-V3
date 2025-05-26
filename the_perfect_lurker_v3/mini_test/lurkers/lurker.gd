@@ -69,3 +69,11 @@ func leave_race():
 func join_race():
 	print(username, " has joined the race")
 	self.in_race = true
+
+func leave_pit():
+	print(username, " has left the pit")
+	self.in_race = false
+	
+func join_pit():
+	print(username, " has joined the pit")
+	self.in_race = true

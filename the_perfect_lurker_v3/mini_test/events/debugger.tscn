@@ -1,6 +1,6 @@
 [gd_scene load_steps=3 format=3 uid="uid://cb5w2ohs5f8vr"]
 
-[ext_resource type="Script" path="res://events/debugger.gd" id="1_ts8ns"]
+[ext_resource type="Script" uid="uid://8fgqrf2djww2" path="res://events/debugger.gd" id="1_ts8ns"]
 [ext_resource type="PackedScene" uid="uid://wkjmp0887831" path="res://events/debug_line.tscn" id="2_iadl6"]
 
 [node name="debugger" type="PanelContainer"]

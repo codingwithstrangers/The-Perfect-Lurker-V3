@@ -40,7 +40,7 @@ func _on_rewards_saved():
 	settings.save()
 	twitch_events.join_reward = settings.join_reward
 	twitch_events.trap_reward = settings.trap_reward
-	twitch_events.missle_reward = settings.missle_reward
+	twitch_events.missile_reward = settings.missle_reward
 	self.ui_root.visible = false
 
 class AdminSettings extends Resource:
