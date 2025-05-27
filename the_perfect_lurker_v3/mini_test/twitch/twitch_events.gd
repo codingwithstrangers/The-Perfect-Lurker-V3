@@ -11,6 +11,7 @@ var yellow_channel_point = "bb5f96f3-714d-4b09-9203-9b698a97aa7f"
 var red_channel_point = "c72d18f9-4bbf-4b9d-8839-55c49042c22d"
 var blue_channel_point = "6faf803c-b051-4533-b86a-95a5955eace3"
 var shield_channel_point = "67313597-0928-46e8-97d3-f7241ec778ed"
+var pit_channel_point = "ae1ee0c8-7e80-4ed5-bead-d083d0f64022"
 
 
 var join_reward: String  #replace this with actual channel points
