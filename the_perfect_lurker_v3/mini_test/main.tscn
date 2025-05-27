@@ -1,4 +1,4 @@
-[gd_scene load_steps=32 format=3 uid="uid://brlanoyshjsn5"]
+[gd_scene load_steps=35 format=3 uid="uid://brlanoyshjsn5"]
 
 [ext_resource type="Texture2D" uid="uid://cy0t4ufpxew64" path="res://scenary/road_horizontal.png" id="1_67h6l"]
 [ext_resource type="Texture2D" uid="uid://bcxas47i57rpq" path="res://scenary/road_vertical.png" id="2_l0882"]
@@ -25,6 +25,9 @@
 [ext_resource type="Script" uid="uid://cjujl3c3p27y3" path="res://track_manager.gd" id="18_cegan"]
 [ext_resource type="PackedScene" uid="uid://dx46qdkoqpc3k" path="res://missile/missle.tscn" id="21_0odxb"]
 [ext_resource type="Texture2D" uid="uid://carv2m2gj7kcf" path="res://missile/red_shell/front_redshell.png" id="21_1u8w0"]
+[ext_resource type="Texture2D" uid="uid://ch0nihi03fall" path="res://missile/paper_plane/updown plane.png" id="23_xuqvo"]
+[ext_resource type="Texture2D" uid="uid://cccuw7mfd6y0n" path="res://missile/kunai/kunai.png" id="24_qsp4k"]
+[ext_resource type="Texture2D" uid="uid://duqu4ikb1ro1g" path="res://missile/kunai/batarang.png" id="25_kq58d"]
 
 [sub_resource type="Curve2D" id="Curve2D_cegan"]
 _data = {
@@ -61,8 +64,6 @@ point_count = 45
 
 [node name="root" type="Node2D"]
 metadata/_edit_vertical_guides_ = [1920.0]
-
-[node name="Node2D" type="Node2D" parent="."]
 
 [node name="track" type="Node2D" parent="."]
 scale = Vector2(0.415, 0.475)
@@ -285,16 +286,18 @@ curve = SubResource("Curve2D_cegan")
 [node name="track_path_pit" type="Path2D" parent="track"]
 curve = SubResource("Curve2D_0odxb")
 
-[node name="Area2D" type="Area2D" parent="track"]
-position = Vector2(1845.78, 976.842)
+[node name="pit_enter" type="Area2D" parent="track"]
+position = Vector2(60.241, 846.316)
+metadata/pit_enter = true
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="track/Area2D"]
+[node name="shape" type="CollisionShape2D" parent="track/pit_enter"]
 shape = SubResource("CircleShape2D_0odxb")
 
-[node name="Area2D2" type="Area2D" parent="track"]
-position = Vector2(57.8313, 922.105)
+[node name="pit_exit" type="Area2D" parent="track"]
+position = Vector2(1845.78, 955.789)
+metadata/pit_exit = true
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="track/Area2D2"]
+[node name="shape" type="CollisionShape2D" parent="track/pit_exit"]
 shape = SubResource("CircleShape2D_0odxb")
 
 [node name="track2" type="Node2D" parent="."]
@@ -367,6 +370,7 @@ texture = ExtResource("8_d13ii")
 [node name="managers" type="Node" parent="."]
 
 [node name="event_stream" type="Node" parent="managers"]
+unique_name_in_owner = true
 script = ExtResource("6_24hdv")
 
 [node name="faker" type="Node" parent="managers" node_paths=PackedStringArray("event_stream", "timer")]
@@ -392,7 +396,7 @@ trap_prefab = ExtResource("13_l7mv5")
 [node name="missle_launcher" type="Node" parent="managers"]
 script = ExtResource("14_8sav2")
 missle_prefab = ExtResource("21_0odxb")
-missle_textures = Array[Texture2D]([ExtResource("21_1u8w0")])
+missle_textures = Array[Texture2D]([ExtResource("21_1u8w0"), ExtResource("23_xuqvo"), ExtResource("24_qsp4k"), ExtResource("25_kq58d")])
 
 [node name="twitch_events" type="Node" parent="managers"]
 script = ExtResource("16_m577l")
@@ -406,6 +410,7 @@ select_track = NodePath("../../track")
 tracks = [NodePath("../../track"), NodePath("../../track2"), NodePath("../../track3"), NodePath("../../track4"), NodePath("../../track5")]
 
 [node name="ui_root" type="MarginContainer" parent="."]
+visible = false
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0

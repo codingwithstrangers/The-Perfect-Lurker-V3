@@ -15,12 +15,17 @@ func _on_missle_launch_attempted(username: String):
 	if not lurker_gang.lurkers.has(username):
 		print("lurker is not in race: ", username)
 		return
-
+		
+	var lurker = lurker_gang.lurkers[username] as Lurker
+	if lurker.state != Lurker.RaceState.Racing:
+		print("lurker is not in race: ", username)
+		return
+		
 	print("missle is launching: ", username)
 	
 	var new_missle = missle_prefab.instantiate()
 	track_manager.track.add_child(new_missle)
-	var lurker = lurker_gang.lurkers[username] as Lurker
+	lurker.idle_timer = 0
 	var missle = new_missle.get_node(".") as Missle
 	
 	missle.name = username + "_missle"

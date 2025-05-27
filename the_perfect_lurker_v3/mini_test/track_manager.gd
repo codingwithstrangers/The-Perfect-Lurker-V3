@@ -19,7 +19,8 @@ var pit: Path2D
 @export var tracks: Array[Node2D]
 #	 We want to make this function select the track and turn on all logic with it
 func _ready() -> void:
-	event_stream.send_to_pit.connect(self.sendtopit)
+	event_stream.send_to_pit.connect(self.send_to_pit)
+	event_stream.send_to_track.connect(self.send_to_track)
 	if select_track == null:
 		select_track = tracks.pick_random()
 	track = select_track.find_child('track_path')
@@ -31,9 +32,12 @@ func _ready() -> void:
 		#if t != select_track:
 			#t.visible = false
 			
-func sendtopit(username: String) -> void:
-	#We have the user name from the signal now we want to move it to the pit (wwe already know the location and lurker stats this is not handled here )
+func send_to_pit(username: String) -> void:
+	#We have the user name from the signal now we want to move it to the pit (we already know the location and lurker stats this is not handled here )
 	#You know have a reference to the lurker gang now you can use the lurkers 
 	var lurker = lurker_gang.lurkers[username]
-	lurker.reparent(pit)
-	
+	lurker.call_deferred("reparent", pit)
+
+func send_to_track(username: String) -> void:
+	var lurker = lurker_gang.lurkers[username]
+	lurker.call_deferred("reparent", track)
