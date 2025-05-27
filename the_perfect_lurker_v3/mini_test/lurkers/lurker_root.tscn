@@ -12,15 +12,14 @@ max_speed = 350.0
 acceleration_rate = 15.0
 deceleration_rate = 40.0
 target_rate = 50.0
+idle_time_before_pitting = 1.0
 
 [node name="lurker_sprite" type="Sprite2D" parent="."]
 rotation = 1.5708
 scale = Vector2(0.2, 0.2)
 
 [node name="lurker_area" type="Area2D" parent="."]
-collision_mask = 0
 input_pickable = false
-monitoring = false
 
 [node name="lurker_collision" type="CollisionShape2D" parent="lurker_area"]
 shape = SubResource("CircleShape2D_ji8g8")
