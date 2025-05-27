@@ -1,7 +1,7 @@
 [gd_scene load_steps=5 format=3 uid="uid://dx46qdkoqpc3k"]
 
 [ext_resource type="Script" uid="uid://b27tfumw767is" path="res://missile/missle.gd" id="1_7lp1g"]
-[ext_resource type="Texture2D" path="res://trap/cone_straight.png" id="2_mj5o8"]
+[ext_resource type="Texture2D" uid="uid://cccuw7mfd6y0n" path="res://missile/kunai/kunai.png" id="2_mj5o8"]
 [ext_resource type="Script" uid="uid://c7b72x1heogae" path="res://trap/traps.gd" id="3_7tmf8"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_lyt1p"]

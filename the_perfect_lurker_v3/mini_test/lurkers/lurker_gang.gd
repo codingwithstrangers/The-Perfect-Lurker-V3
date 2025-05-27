@@ -5,15 +5,14 @@ class_name LurkerGang
 @onready var event_stream: EventStream = $'../event_stream'
 @onready var track_manager: TrackManager = $"../track_manager"
 
-
-# string: Lurker
-var lurkers = {}
+var lurkers: Dictionary[String, Lurker] = {}
 
 func _ready():
 	event_stream.join_race_attempted.connect(self._on_join_race_attempted)
 	event_stream.leave_race_attempted.connect(self._on_leave_race_attempted)
 	event_stream.lurker_chat.connect(self._on_lurker_chat)
-	
+	event_stream.send_to_pit.connect(self._on_lurker_send_to_pit)
+	event_stream.leave_the_pit.connect(self._on_lurker_leave_the_pit)
 
 func _on_join_race_attempted(username: String, profile_url: String):
 	print(username, " is joining the race")
@@ -89,9 +88,7 @@ func spawn_lurker(username: String, url: String, image: Image):
 	lurker.profile_url = url
 	lurker.profile_image = downloaded_image
 	lurker.car_sprite.texture = downloaded_image
-	lurker.in_race = true
 	lurker.name = username
-
 	event_stream.joined_race.emit(lurker)
 
 func _on_lurker_chat(username: String):
@@ -101,3 +98,11 @@ func _on_lurker_chat(username: String):
 func _on_leave_race_attempted(username: String):
 	if lurkers.has(username):
 		lurkers[username].leave_race()
+
+func _on_lurker_send_to_pit(username: String):
+	if lurkers.has(username):
+		lurkers[username].enter_pit()
+
+func _on_lurker_leave_the_pit(username: String):
+	if lurkers.has(username):
+		lurkers[username].leave_pit()
