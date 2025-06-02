@@ -26,6 +26,12 @@ var steps = [
 	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
 	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
 	func(): event_stream.leave_the_pit.emit("miniscruff"),
+	func(): event_stream.leave_the_pit.emit("codingwithstrangers"),
+	func(): event_stream.send_to_track.emit("codingwithstrangers"),
+	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
+	func(): event_stream.leave_the_pit.emit("miniscruff"),
+	func(): event_stream.send_to_track.emit("miniscruff"),
+	
 ]
 
 func _ready():

@@ -13,7 +13,7 @@ speed = 500.0
 
 [node name="missle_sprite" type="Sprite2D" parent="."]
 rotation = -0.00224052
-scale = Vector2(1.00055, 1.00431)
+scale = Vector2(0.3, 0.3)
 texture = ExtResource("2_mj5o8")
 
 [node name="missle_area" type="Area2D" parent="." node_paths=PackedStringArray("trap_root", "sprite")]
