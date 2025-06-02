@@ -21,6 +21,8 @@ var pit: Path2D
 func _ready() -> void:
 	event_stream.send_to_pit.connect(self.send_to_pit)
 	event_stream.send_to_track.connect(self.send_to_track)
+	#event_stream.leave_the_pit.connect(self.send_to_track)
+	
 	if select_track == null:
 		select_track = tracks.pick_random()
 	track = select_track.find_child('track_path')

@@ -9,6 +9,8 @@ class_name Login
 @onready var join_reward_edit: LineEdit = $rewards_root/join_reward_edit
 @onready var trap_reward_edit: LineEdit = $rewards_root/trap_reward_edit
 @onready var missle_reward_edit: LineEdit = $rewards_root/missle_edit
+@onready var leave_pit_reward_edit: LineEdit = $rewards_root/pit_leave_edit
+@onready var shield_reward_edit: LineEdit = $rewards_root/shield_edit
 
 var settings: AdminSettings
 
@@ -20,6 +22,8 @@ func _ready() -> void:
 	join_reward_edit.text = settings.join_reward
 	trap_reward_edit.text = settings.trap_reward
 	missle_reward_edit.text = settings.missle_reward
+	leave_pit_reward_edit.text = settings.pit_reward
+	shield_reward_edit.text = settings.shield_reward
 
 func _on_login_attempt():
 	settings.client_id = client_id_edit.text
@@ -37,10 +41,14 @@ func _on_rewards_saved():
 	settings.join_reward = join_reward_edit.text
 	settings.trap_reward = trap_reward_edit.text
 	settings.missle_reward = missle_reward_edit.text
+	settings.shield_reward = shield_reward_edit.text
+	settings.pit_reward = leave_pit_reward_edit.text
 	settings.save()
 	twitch_events.join_reward = settings.join_reward
 	twitch_events.trap_reward = settings.trap_reward
 	twitch_events.missile_reward = settings.missle_reward
+	twitch_events.leave_pit_reward = settings.pit_reward
+	twitch_events.shield_channel_point = settings.shield_reward
 	self.ui_root.visible = false
 
 class AdminSettings extends Resource:
@@ -50,6 +58,8 @@ class AdminSettings extends Resource:
 	var join_reward: String
 	var trap_reward: String
 	var missle_reward: String
+	var pit_reward: String
+	var shield_reward: String
 	
 	const settings_path := "user://settings.dat"
 	
@@ -62,6 +72,8 @@ class AdminSettings extends Resource:
 			"join_reward": self.join_reward,
 			"trap_reward": self.trap_reward,
 			"missle_reward": self.missle_reward,
+			"pit_reward": self.pit_reward,
+			"shield_reward": self.shield_reward,
 		}))
 		f.close()
 	
@@ -79,6 +91,8 @@ class AdminSettings extends Resource:
 		settings.join_reward = c.join_reward
 		settings.trap_reward = c.trap_reward
 		settings.missle_reward = c.missle_reward
+		settings.pit_reward = c.pit_reward
+		settings.shield_reward = c.shield_reward
 		return settings
 
 

@@ -17,6 +17,7 @@ var pit_channel_point = "ae1ee0c8-7e80-4ed5-bead-d083d0f64022"
 var join_reward: String  #replace this with actual channel points
 var trap_reward: String
 var missile_reward: String
+var leave_pit_reward: String
 
 func _ready() -> void:
 	event_stream.send_chat.connect(chat)
@@ -78,3 +79,5 @@ func on_event(type: String, data: Dictionary) -> void:
 					event_stream.trap_drop_attempted.emit(data["user_name"])
 				missile_reward:
 					event_stream.missle_launch_attempted.emit(data["user_name"])
+				leave_pit_reward:
+					event_stream.leave_the_pit.emit(data["user_name"])

@@ -1,13 +1,10 @@
-[gd_scene load_steps=35 format=3 uid="uid://brlanoyshjsn5"]
+[gd_scene load_steps=32 format=3 uid="uid://brlanoyshjsn5"]
 
-[ext_resource type="Texture2D" uid="uid://cy0t4ufpxew64" path="res://scenary/road_horizontal.png" id="1_67h6l"]
-[ext_resource type="Texture2D" uid="uid://bcxas47i57rpq" path="res://scenary/road_vertical.png" id="2_l0882"]
-[ext_resource type="Texture2D" uid="uid://dwcadnnww14cs" path="res://scenary/road_corner.png" id="3_08gnq"]
+[ext_resource type="Texture2D" uid="uid://b3q0lw3anqx4q" path="res://scenary/track_one.png" id="1_0odxb"]
 [ext_resource type="PackedScene" uid="uid://8wic177nek8f" path="res://lurkers/lurker_root.tscn" id="5_6iwvi"]
 [ext_resource type="Texture2D" uid="uid://baekccwefjney" path="res://scenary/track_two/figure8_00001.png" id="5_074og"]
 [ext_resource type="Script" uid="uid://butgpbst4m4ak" path="res://events/event_stream.gd" id="6_24hdv"]
 [ext_resource type="Texture2D" uid="uid://cotdm110j6tgl" path="res://scenary/track_three/minimap base.png" id="6_getpj"]
-[ext_resource type="Texture2D" uid="uid://bnkxpnh3md50e" path="res://scenary/road_checkered.png" id="7_puk8d"]
 [ext_resource type="Texture2D" uid="uid://1vdjwiyc1464" path="res://scenary/rainbow road_00000_00000.png" id="7_ryguw"]
 [ext_resource type="Texture2D" uid="uid://cjby3evw7xihx" path="res://scenary/track_two/line.jpg" id="8_d13ii"]
 [ext_resource type="Script" uid="uid://0jcnt64aiguy" path="res://events/faker.gd" id="8_lbh5e"]
@@ -29,15 +26,15 @@
 [ext_resource type="Texture2D" uid="uid://cccuw7mfd6y0n" path="res://missile/kunai/kunai.png" id="24_qsp4k"]
 [ext_resource type="Texture2D" uid="uid://duqu4ikb1ro1g" path="res://missile/kunai/batarang.png" id="25_kq58d"]
 
+[sub_resource type="Curve2D" id="Curve2D_a6jrf"]
+_data = {
+"points": PackedVector2Array(-60.599, 1.76293, 60.599, -1.76293, 695, 760, 0, 0, 0, 0, 741, 749, 0, 0, 0, 0, 745, 427, 44.5455, 60.9091, -44.5455, -60.9091, 733, 57, 0, 0, 0, 0, 374, 54, 72.6, -67.76, -72.6, 67.76, 59, 62, 0, 0, 0, 0, 46, 508, -57.9784, -67.6414, 57.9784, 67.6414, 62, 739, 0, 0, 0, 0, 300, 754, 0, 0, 0, 0, 585, 758, 0, 0, 0, 0, 627, 759, 0, 0, 0, 0, 695, 760)
+}
+point_count = 12
+
 [sub_resource type="Curve2D" id="Curve2D_cegan"]
 _data = {
-"points": PackedVector2Array(0, 0, 0, 0, 1554, 991, -39.6899, 54.4902, 39.6899, -54.4902, 1842, 977, 0, 0, 0, 0, 1844, 484, 44.5455, 60.9091, -44.5455, -60.9091, 1842, 103, 0, 0, 0, 0, 946, 102, 72.6, -67.76, -72.6, 67.76, 87, 111, 0, 0, 0, 0, 71, 505, -57.9784, -67.6414, 57.9784, 67.6414, 86, 964, 0, 0, 0, 0, 1554, 990, 0, 0, 0, 0, 1554, 991)
-}
-point_count = 10
-
-[sub_resource type="Curve2D" id="Curve2D_0odxb"]
-_data = {
-"points": PackedVector2Array(0, 0, 0, 0, 1554, 991, -39.6899, 54.4902, 39.6899, -54.4902, 1842, 977, 0, 0, 0, 0, 1844, 484, 44.5455, 60.9091, -44.5455, -60.9091, 1842, 103, 0, 0, 0, 0, 946, 102, 72.6, -67.76, -72.6, 67.76, 87, 111, 0, 0, 0, 0, 71, 505, -57.9784, -67.6414, 57.9784, 67.6414, 86, 964, 0, 0, 0, 0, 431.325, 993.684, 0, 0, 0, 0, 503.614, 873.684, 0, 0, 0, 0, 1448.19, 880, 0, 0, 0, 0, 1496.39, 989.474, 0, 0, 0, 0, 1554, 990, 0, 0, 0, 0, 1554, 991)
+"points": PackedVector2Array(-60.599, 1.76293, 60.599, -1.76293, 695, 760, 0, 0, 0, 0, 741, 749, 0, 0, 0, 0, 745, 427, 44.5455, 60.9091, -44.5455, -60.9091, 733, 57, 0, 0, 0, 0, 374, 54, 72.6, -67.76, -72.6, 67.76, 59, 62, 0, 0, 0, 0, 45, 507, -57.9784, -67.6414, 57.9784, 67.6414, 62, 739, 0, 0, 0, 0, 187, 734, 0, 0, 0, 0, 215, 660, 0, 0, 0, 0, 551, 664, 0, 0, 0, 0, 603, 693, 0, 0, 0, 0, 627, 759, 0, 0, 0, 0, 695, 760)
 }
 point_count = 14
 
@@ -66,239 +63,33 @@ point_count = 45
 metadata/_edit_vertical_guides_ = [1920.0]
 
 [node name="track" type="Node2D" parent="."]
-scale = Vector2(0.415, 0.475)
 
 [node name="RoadAsphalt22" type="Sprite2D" parent="track"]
-position = Vector2(448, 992)
-texture = ExtResource("1_67h6l")
-
-[node name="RoadAsphalt32" type="Sprite2D" parent="track"]
-position = Vector2(192, 96)
-texture = ExtResource("1_67h6l")
-
-[node name="RoadAsphalt33" type="Sprite2D" parent="track"]
-position = Vector2(320, 96)
-texture = ExtResource("1_67h6l")
-
-[node name="RoadAsphalt34" type="Sprite2D" parent="track"]
-position = Vector2(448, 96)
-texture = ExtResource("1_67h6l")
-
-[node name="RoadAsphalt35" type="Sprite2D" parent="track"]
-position = Vector2(576, 96)
-texture = ExtResource("1_67h6l")
-
-[node name="RoadAsphalt36" type="Sprite2D" parent="track"]
-position = Vector2(704, 96)
-texture = ExtResource("1_67h6l")
-
-[node name="RoadAsphalt37" type="Sprite2D" parent="track"]
-position = Vector2(832, 96)
-texture = ExtResource("1_67h6l")
-
-[node name="RoadAsphalt38" type="Sprite2D" parent="track"]
-position = Vector2(960, 96)
-texture = ExtResource("1_67h6l")
-
-[node name="RoadAsphalt39" type="Sprite2D" parent="track"]
-position = Vector2(1088, 96)
-texture = ExtResource("1_67h6l")
-
-[node name="RoadAsphalt40" type="Sprite2D" parent="track"]
-position = Vector2(1216, 96)
-texture = ExtResource("1_67h6l")
-
-[node name="RoadAsphalt49" type="Sprite2D" parent="track"]
-position = Vector2(576, 885)
-texture = ExtResource("1_67h6l")
-
-[node name="RoadAsphalt50" type="Sprite2D" parent="track"]
-position = Vector2(1216, 885)
-texture = ExtResource("1_67h6l")
-
-[node name="RoadAsphalt55" type="Sprite2D" parent="track"]
-position = Vector2(1216, 885)
-texture = ExtResource("1_67h6l")
-
-[node name="RoadAsphalt57" type="Sprite2D" parent="track"]
-position = Vector2(1344, 885)
-texture = ExtResource("1_67h6l")
-
-[node name="RoadAsphalt51" type="Sprite2D" parent="track"]
-position = Vector2(1088, 885)
-texture = ExtResource("1_67h6l")
-
-[node name="RoadAsphalt52" type="Sprite2D" parent="track"]
-position = Vector2(960, 885)
-texture = ExtResource("1_67h6l")
-
-[node name="RoadAsphalt53" type="Sprite2D" parent="track"]
-position = Vector2(832, 885)
-texture = ExtResource("1_67h6l")
-
-[node name="RoadAsphalt41" type="Sprite2D" parent="track"]
-position = Vector2(1344, 96)
-texture = ExtResource("1_67h6l")
-
-[node name="RoadAsphalt42" type="Sprite2D" parent="track"]
-position = Vector2(1472, 96)
-texture = ExtResource("1_67h6l")
-
-[node name="RoadAsphalt44" type="Sprite2D" parent="track"]
-position = Vector2(1600, 96)
-texture = ExtResource("1_67h6l")
-
-[node name="RoadAsphalt46" type="Sprite2D" parent="track"]
-position = Vector2(1728, 96)
-texture = ExtResource("1_67h6l")
-
-[node name="RoadAsphalt23" type="Sprite2D" parent="track"]
-position = Vector2(576, 992)
-texture = ExtResource("1_67h6l")
-
-[node name="RoadAsphalt24" type="Sprite2D" parent="track"]
-position = Vector2(192, 992)
-texture = ExtResource("1_67h6l")
-
-[node name="RoadAsphalt25" type="Sprite2D" parent="track"]
-position = Vector2(320, 992)
-texture = ExtResource("1_67h6l")
-
-[node name="RoadAsphalt19" type="Sprite2D" parent="track"]
-position = Vector2(1856, 608)
-texture = ExtResource("2_l0882")
-
-[node name="RoadAsphalt20" type="Sprite2D" parent="track"]
-position = Vector2(1856, 736)
-texture = ExtResource("2_l0882")
-
-[node name="RoadAsphalt21" type="Sprite2D" parent="track"]
-position = Vector2(1856, 864)
-texture = ExtResource("2_l0882")
-
-[node name="RoadAsphalt29" type="Sprite2D" parent="track"]
-position = Vector2(1856, 224)
-texture = ExtResource("2_l0882")
-
-[node name="RoadAsphalt30" type="Sprite2D" parent="track"]
-position = Vector2(1856, 352)
-texture = ExtResource("2_l0882")
-
-[node name="RoadAsphalt31" type="Sprite2D" parent="track"]
-position = Vector2(1856, 480)
-texture = ExtResource("2_l0882")
-
-[node name="RoadAsphalt06" type="Sprite2D" parent="track"]
-position = Vector2(64, 864)
-texture = ExtResource("2_l0882")
-
-[node name="RoadAsphalt12" type="Sprite2D" parent="track"]
-position = Vector2(64, 736)
-texture = ExtResource("2_l0882")
-
-[node name="RoadAsphalt13" type="Sprite2D" parent="track"]
-position = Vector2(64, 608)
-texture = ExtResource("2_l0882")
-
-[node name="RoadAsphalt54" type="Sprite2D" parent="track"]
-position = Vector2(704, 885)
-texture = ExtResource("1_67h6l")
-
-[node name="RoadAsphalt14" type="Sprite2D" parent="track"]
-position = Vector2(64, 480)
-texture = ExtResource("2_l0882")
-
-[node name="RoadAsphalt15" type="Sprite2D" parent="track"]
-position = Vector2(64, 352)
-texture = ExtResource("2_l0882")
-
-[node name="RoadAsphalt16" type="Sprite2D" parent="track"]
-position = Vector2(64, 224)
-texture = ExtResource("2_l0882")
-
-[node name="RoadAsphalt03" type="Sprite2D" parent="track"]
-position = Vector2(1088, 992)
-texture = ExtResource("1_67h6l")
-
-[node name="RoadAsphalt10" type="Sprite2D" parent="track"]
-position = Vector2(1216, 992)
-texture = ExtResource("1_67h6l")
-
-[node name="RoadAsphalt11" type="Sprite2D" parent="track"]
-position = Vector2(1344, 992)
-texture = ExtResource("1_67h6l")
-
-[node name="RoadAsphalt26" type="Sprite2D" parent="track"]
-position = Vector2(1472, 992)
-texture = ExtResource("1_67h6l")
-
-[node name="RoadAsphalt27" type="Sprite2D" parent="track"]
-position = Vector2(960, 992)
-texture = ExtResource("1_67h6l")
-
-[node name="RoadAsphalt28" type="Sprite2D" parent="track"]
-position = Vector2(1728, 992)
-texture = ExtResource("1_67h6l")
-
-[node name="RoadAsphalt04" type="Sprite2D" parent="track"]
-position = Vector2(64, 96)
-rotation = -1.5708
-texture = ExtResource("3_08gnq")
-
-[node name="RoadAsphalt07" type="Sprite2D" parent="track"]
-position = Vector2(1856, 96)
-texture = ExtResource("3_08gnq")
-
-[node name="RoadAsphalt43" type="Sprite2D" parent="track"]
-position = Vector2(64, 992)
-rotation = 3.14159
-texture = ExtResource("3_08gnq")
-
-[node name="RoadAsphalt45" type="Sprite2D" parent="track"]
-position = Vector2(1856, 992)
-rotation = 1.5708
-texture = ExtResource("3_08gnq")
-
-[node name="RoadAsphalt48" type="Sprite2D" parent="track"]
-position = Vector2(448, 885)
-rotation = -1.5708
-texture = ExtResource("3_08gnq")
-
-[node name="RoadAsphalt58" type="Sprite2D" parent="track"]
-position = Vector2(1472, 885)
-texture = ExtResource("3_08gnq")
-
-[node name="RoadAsphalt08" type="Sprite2D" parent="track"]
-position = Vector2(704, 992)
-texture = ExtResource("1_67h6l")
-
-[node name="RoadAsphalt09" type="Sprite2D" parent="track"]
-position = Vector2(832, 992)
-texture = ExtResource("1_67h6l")
-
-[node name="RoadAsphalt47" type="Sprite2D" parent="track"]
-position = Vector2(1600, 992)
-texture = ExtResource("7_puk8d")
+position = Vector2(399, 406)
+scale = Vector2(1, 0.9975)
+texture = ExtResource("1_0odxb")
 
 [node name="track_path" type="Path2D" parent="track"]
-curve = SubResource("Curve2D_cegan")
+curve = SubResource("Curve2D_a6jrf")
 
 [node name="track_path_pit" type="Path2D" parent="track"]
-curve = SubResource("Curve2D_0odxb")
+curve = SubResource("Curve2D_cegan")
 
 [node name="pit_enter" type="Area2D" parent="track"]
-position = Vector2(60.241, 846.316)
+position = Vector2(252, 53)
 metadata/pit_enter = true
 
 [node name="shape" type="CollisionShape2D" parent="track/pit_enter"]
 shape = SubResource("CircleShape2D_0odxb")
+metadata/_edit_lock_ = true
 
 [node name="pit_exit" type="Area2D" parent="track"]
-position = Vector2(1845.78, 955.789)
+position = Vector2(733, 754)
 metadata/pit_exit = true
 
 [node name="shape" type="CollisionShape2D" parent="track/pit_exit"]
 shape = SubResource("CircleShape2D_0odxb")
+metadata/_edit_lock_ = true
 
 [node name="track2" type="Node2D" parent="."]
 visible = false
@@ -377,6 +168,7 @@ script = ExtResource("6_24hdv")
 script = ExtResource("8_lbh5e")
 event_stream = NodePath("../event_stream")
 timer = NodePath("event_timer")
+enabled = true
 
 [node name="event_timer" type="Timer" parent="managers/faker"]
 autostart = true
@@ -409,6 +201,7 @@ select_track = NodePath("../../track")
 tracks = [NodePath("../../track"), NodePath("../../track2"), NodePath("../../track3"), NodePath("../../track4"), NodePath("../../track5")]
 
 [node name="ui_root" type="MarginContainer" parent="."]
+visible = false
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -521,6 +314,32 @@ horizontal_alignment = 2
 custom_minimum_size = Vector2(250, 0)
 layout_mode = 2
 placeholder_text = "missle reward id"
+expand_to_text_length = true
+clear_button_enabled = true
+caret_blink = true
+
+[node name="pit_leave_label" type="Label" parent="ui_root/form_root/rewards_root"]
+layout_mode = 2
+text = "Pit Reward:"
+horizontal_alignment = 2
+
+[node name="pit_leave_edit" type="LineEdit" parent="ui_root/form_root/rewards_root"]
+custom_minimum_size = Vector2(250, 0)
+layout_mode = 2
+placeholder_text = "pit reward id"
+expand_to_text_length = true
+clear_button_enabled = true
+caret_blink = true
+
+[node name="shield_label" type="Label" parent="ui_root/form_root/rewards_root"]
+layout_mode = 2
+text = "Shield Reward:"
+horizontal_alignment = 2
+
+[node name="shield_edit" type="LineEdit" parent="ui_root/form_root/rewards_root"]
+custom_minimum_size = Vector2(250, 0)
+layout_mode = 2
+placeholder_text = "Shield reward id"
 expand_to_text_length = true
 clear_button_enabled = true
 caret_blink = true
