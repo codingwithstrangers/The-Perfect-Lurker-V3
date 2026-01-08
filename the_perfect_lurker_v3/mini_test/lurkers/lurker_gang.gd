@@ -13,7 +13,7 @@ func _ready():
 	event_stream.lurker_chat.connect(self._on_lurker_chat)
 	event_stream.send_to_pit.connect(self._on_lurker_send_to_pit)
 	event_stream.leave_the_pit.connect(self._on_lurker_leave_the_pit)
-	#event_stream.kick_attempted.connect(self._on_kick_attempted)
+	event_stream.kick_user.connect(self._on_kick_user)
 
 func _on_join_race_attempted(username: String, profile_url: String):
 	print(username, " is joining the race")
@@ -96,9 +96,11 @@ func _on_lurker_chat(username: String):
 	if lurkers.has(username):
 		lurkers[username].chat()
 
-func _on_kick_attempted(username: String):
+func _on_kick_user(username: String):
 	if lurkers.has(username):
-		lurkers[username]._kick()
+		lurkers[username]._kick(username)
+		lurkers[username].queue_free()
+		lurkers.erase(username)
 
 func _on_leave_race_attempted(username: String):
 	if lurkers.has(username):

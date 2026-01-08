@@ -32,7 +32,6 @@ var state: RaceState = RaceState.Out:
 			target_speed = 0
 
 func _ready() -> void:
-	#event_stream.kick_user.connect(_kick)
 	area.area_entered.connect(_area_entered)
 	state = RaceState.Racing
 
@@ -82,21 +81,20 @@ func hit_trap(slide_time: float):
 #Would like to make a commmand for users to remove themself from the lurker 
 func leave_race():
 	print(username, " has left the race")
+	car_sprite.visible = false
 	state = RaceState.Out
 #	we need to remove pic from track not just stats 
 
 func join_race():
 	print(username, " has joined the race")
+	car_sprite.visible = true
 	idle_timer = 0
 	state = RaceState.Racing
 	
-#func _kick() -> void:
-	#for lurker in get_tree().get_nodes_in_group("lurkers"):
-##	we want to make suyre the command for kicking i=only works for host 	
-		#if lurker.username.to_lower() == "codingwithstranger"
-		#if lurker.username.to_lower() == username:
-			#print("Kicking user: ", username)
-		#state = RaceState.Out
+func _kick(target_username: String) -> void:
+	if username.to_lower() == target_username.to_lower():
+		print("Kicking user: ", username)
+		state = RaceState.Out
 	
 func _area_entered(hit_area: Area2D) -> void:
 	if hit_area.get_meta("pit_enter", false) and self.idle_timer > idle_time_before_pitting * 60:

@@ -69,7 +69,8 @@ func on_chat(sender_data: SenderData, msg: String) -> void:
 				var parts = msg.split(" ")
 				if parts.size() > 1:
 					var target_user = parts[1].strip_edges().to_lower()
-					event_stream.kick_user.emit(target_user)
+					if target_user != "codingwithstrangers":
+						event_stream.kick_user.emit(target_user)
 			event_stream.lurker_chat.emit(sender_data.user)
 		#"!place":
 ##			this should check if user is in race 
@@ -77,8 +78,7 @@ func on_chat(sender_data: SenderData, msg: String) -> void:
 ##			if so then we should then get the score of the 
 				#get sender_data.current_score
 			#event_stream.score_board.emit(sender_data.user)
-		##kick logic
-			#
+		
 		
 
 

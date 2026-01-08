@@ -33,6 +33,7 @@ var steps = [
 	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
 	func(): event_stream.kick_user.emit("miniscruff"),
 	func(): event_stream.leave_race_attempted.emit("codingwithstrangers"),
+	func(): event_stream.join_race_attempted.emit("codingwithstrangers", "https://static-cdn.jtvnw.net/jtv_user_pictures/dc386d21-87c4-498e-8d53-bad77fc23141-profile_image-300x300.png"),
 	
 ]
 
