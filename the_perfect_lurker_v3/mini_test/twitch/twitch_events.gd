@@ -18,6 +18,7 @@ var join_reward: String  #replace this with actual channel points
 var trap_reward: String
 var missile_reward: String
 var leave_pit_reward: String
+var score_board: String
 
 func _ready() -> void:
 	event_stream.send_chat.connect(chat)
@@ -63,8 +64,22 @@ func on_chat(sender_data: SenderData, msg: String) -> void:
 			event_stream.missle_launch_attempted.emit(sender_data.user)
 		"!leave":
 			event_stream.leave_race_attempted.emit(sender_data.user)
-		_:
+		"!kick":
+			if sender_data.user == "codingwithstrangers":
+				var parts = msg.split(" ")
+				if parts.size() > 1:
+					var target_user = parts[1].strip_edges().to_lower()
+					event_stream.kick_user.emit(target_user)
 			event_stream.lurker_chat.emit(sender_data.user)
+		#"!place":
+##			this should check if user is in race 
+			#if sender_data.user == race stats: in
+##			if so then we should then get the score of the 
+				#get sender_data.current_score
+			#event_stream.score_board.emit(sender_data.user)
+		##kick logic
+			#
+		
 
 
 func on_event(type: String, data: Dictionary) -> void:

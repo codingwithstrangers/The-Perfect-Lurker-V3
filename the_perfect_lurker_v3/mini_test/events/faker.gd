@@ -21,16 +21,18 @@ var steps = [
 	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
 	func(): event_stream.lurker_chat.emit("codingwithstrangers"),
 	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
-	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
-	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
-	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
-	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
 	func(): event_stream.leave_the_pit.emit("miniscruff"),
 	func(): event_stream.leave_the_pit.emit("codingwithstrangers"),
+	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
+	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
+	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
 	func(): event_stream.send_to_track.emit("codingwithstrangers"),
 	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
 	func(): event_stream.leave_the_pit.emit("miniscruff"),
 	func(): event_stream.send_to_track.emit("miniscruff"),
+	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
+	func(): event_stream.kick_user.emit("miniscruff"),
+	func(): event_stream.leave_race_attempted.emit("codingwithstrangers"),
 	
 ]
 

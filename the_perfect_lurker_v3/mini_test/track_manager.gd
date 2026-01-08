@@ -31,8 +31,8 @@ func _ready() -> void:
 	#for this a loop is best 
 	for t in tracks:
 		t.visible = t == select_track
-		#if t != select_track:
-			#t.visible = false
+		if t != select_track:
+			t.visible = false
 			
 func send_to_pit(username: String) -> void:
 	#We have the user name from the signal now we want to move it to the pit (we already know the location and lurker stats this is not handled here )
