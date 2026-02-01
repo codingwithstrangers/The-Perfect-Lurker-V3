@@ -6,6 +6,8 @@ class_name LurkerGang
 @onready var track_manager: TrackManager = $"../track_manager"
 
 var lurkers: Dictionary[String, Lurker] = {}
+var crown_textures: Dictionary[int, Texture2D] = {}
+var rankings: Array[String] = []
 
 func _ready():
 	event_stream.join_race_attempted.connect(self._on_join_race_attempted)
@@ -15,6 +17,7 @@ func _ready():
 	event_stream.leave_the_pit.connect(self._on_lurker_leave_the_pit)
 	event_stream.kick_user.connect(self._on_kick_user)
 
+	_load_crown_textures()
 func _on_join_race_attempted(username: String, profile_url: String):
 	print(username, " is joining the race")
 	if lurkers.has(username):
@@ -92,6 +95,8 @@ func spawn_lurker(username: String, url: String, image: Image):
 	lurker.name = username
 	event_stream.joined_race.emit(lurker)
 
+	lurker.lap_completed.connect(self._on_lurker_lap_completed)
+	lurker.distance_updated.connect(self._on_lurker_distance_updated)
 func _on_lurker_chat(username: String):
 	if lurkers.has(username):
 		lurkers[username].chat()
@@ -113,3 +118,69 @@ func _on_lurker_send_to_pit(username: String):
 func _on_lurker_leave_the_pit(username: String):
 	if lurkers.has(username):
 		lurkers[username].leave_pit()
+
+func _load_crown_textures() -> void:
+	crown_textures[0] = load("res://crowns/gold.png")
+	crown_textures[1] = load("res://crowns/silver.png")
+	crown_textures[2] = load("res://crowns/bronze.png")
+
+func _on_lurker_lap_completed(username: String, lap_count: int) -> void:
+	print(username, " completed lap ", lap_count + 1)
+	_update_rankings()
+	_update_crowns()
+
+func _on_lurker_distance_updated(_username: String, _total_distance: float) -> void:
+	# distance updates are frequent; update rankings and crowns in response
+	_update_rankings()
+	_update_crowns()
+
+func _update_rankings() -> void:
+	rankings.clear()
+	var racing_lurkers: Array[String] = []
+	for username in lurkers.keys():
+		var lurker = lurkers[username]
+		if lurker.state != Lurker.RaceState.Out:
+			racing_lurkers.append(username)
+
+	# sort descending by total_distance using a simple stable selection sort
+	var sorted_lurkers: Array[String] = []
+	for uname in racing_lurkers:
+		sorted_lurkers.append(uname)
+
+	var n = sorted_lurkers.size()
+	for i in range(n):
+		var best = i
+		for j in range(i + 1, n):
+			if lurkers[sorted_lurkers[j]].total_distance > lurkers[sorted_lurkers[best]].total_distance:
+				best = j
+		if best != i:
+			var tmp = sorted_lurkers[i]
+			sorted_lurkers[i] = sorted_lurkers[best]
+			sorted_lurkers[best] = tmp
+
+	rankings = sorted_lurkers
+
+func _compare_by_distance(a: String, b: String) -> int:
+	var da = 0.0
+	var db = 0.0
+	if lurkers.has(a):
+		da = lurkers[a].total_distance
+	if lurkers.has(b):
+		db = lurkers[b].total_distance
+	if da > db:
+		return -1
+	elif da < db:
+		return 1
+	return 0
+
+func _update_crowns() -> void:
+	# Remove crowns from everyone first to avoid stale crowns
+	for uname in lurkers.keys():
+		lurkers[uname].remove_crown()
+
+	var crown_order = [0, 1, 2]
+	for i in range(min(3, rankings.size())):
+		var username = rankings[i]
+		if lurkers.has(username):
+			var lurker = lurkers[username]
+			lurker.set_crown(crown_textures[crown_order[i]])

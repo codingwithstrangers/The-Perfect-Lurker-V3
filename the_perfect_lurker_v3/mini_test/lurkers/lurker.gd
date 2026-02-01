@@ -2,6 +2,7 @@ extends PathFollow2D
 class_name Lurker
 
 enum RaceState { Out, Racing, Pitting, InThePit, LeavingThePit, Stunned }
+signal lap_completed(username: String, lap_count: int)
 
 @export var max_speed: float
 @export var acceleration_rate: float
@@ -20,8 +21,14 @@ var profile_image: Texture2D
 
 var speed = 0.0
 var target_speed = 0.0
-var score = 0
+var lap_count = 0
+var previous_progress = 0.0
 var idle_timer: float = 0
+var crown_sprite: Sprite2D = null
+@export var units_per_mile: float = 1000.0
+var total_distance: float = 0.0
+
+signal distance_updated(username: String, total_distance: float)
 
 var state: RaceState = RaceState.Out:
 	set(new_state):
@@ -50,10 +57,29 @@ func _process(delta: float) -> void:
 		self.target_speed = min(self.target_speed + self.target_rate * delta, self.max_speed)
 	
 	self.progress += speed * delta
-	self.score += speed * delta
+	# Track total distance (used for ranking)
+	self.total_distance += speed * delta
+
+	# Compute laps from total_distance using track length
+	var track_len = 0.0
+	if get_parent() and get_parent().curve:
+		track_len = get_parent().curve.get_baked_length()
+
+	if track_len > 0:
+		var new_laps = int(self.total_distance / track_len)
+		if new_laps > lap_count:
+			lap_count = new_laps
+			lap_completed.emit(username, lap_count)
+
+	# Emit distance update for ranking
+	distance_updated.emit(username, self.total_distance)
+
 	self.idle_timer += delta
-	
-	debugger.report(self.username+"_score", String.num(self.score, 1))
+
+	# Report miles (two decimals) and other stats
+	var miles = self.total_distance / units_per_mile
+	debugger.report(self.username+"_miles", String.num(miles, 2))
+	debugger.report(self.username+"_laps", String.num(self.lap_count, 0))
 	debugger.report(self.username+"_speed", String.num(self.speed, 3))
 	debugger.report(self.username+"_target_speed", String.num(self.target_speed, 3))
 	debugger.report(self.username+"_state", RaceState.keys()[state])
@@ -89,6 +115,12 @@ func join_race():
 	print(username, " has joined the race")
 	car_sprite.visible = true
 	idle_timer = 0
+	lap_count = 0
+	progress = 0
+	previous_progress = 0.0
+	speed = 0.0
+	target_speed = 0.0
+	remove_crown()
 	state = RaceState.Racing
 	
 func _kick(target_username: String) -> void:
@@ -106,10 +138,29 @@ func _area_entered(hit_area: Area2D) -> void:
 		state = RaceState.Racing
 
 func leave_pit():
+	if state != RaceState.InThePit:
+		return
 	print(username, " is leaving the pit")
 	state = RaceState.LeavingThePit
 	idle_timer = 0
+	progress = 0
+	speed = 0.0
+	target_speed = 0.0
 	
 func enter_pit():
 	print(username, " has entered the pit")
 	state = RaceState.Pitting
+
+func set_crown(crown_texture: Texture2D) -> void:
+	if crown_sprite == null:
+		crown_sprite = Sprite2D.new()
+		crown_sprite.scale = Vector2(0.15, 0.15)
+		crown_sprite.rotation_degrees = 25.0
+		crown_sprite.offset = Vector2(150, -430)
+		add_child(crown_sprite)
+	crown_sprite.texture = crown_texture
+
+func remove_crown() -> void:
+	if crown_sprite != null:
+		crown_sprite.queue_free()
+		crown_sprite = null
