@@ -2,7 +2,7 @@ extends PathFollow2D
 class_name Lurker
 
 enum RaceState { Out, Racing, Pitting, InThePit, LeavingThePit, Stunned }
-signal lap_completed(username: String, lap_count: int)
+signal lap_completed(user_name: String, lap_count: int)
 
 @export var max_speed: float
 @export var acceleration_rate: float
@@ -27,8 +27,11 @@ var idle_timer: float = 0
 var crown_sprite: Sprite2D = null
 @export var units_per_mile: float = 1000.0
 var total_distance: float = 0.0
+var last_state_before_leave: RaceState = RaceState.Out  # Track where they left from
+var shield_level: int = 0
+var shield_sprite: Sprite2D = null
 
-signal distance_updated(username: String, total_distance: float)
+signal distance_updated(user_name: String, total_distance: float)
 
 var state: RaceState = RaceState.Out:
 	set(new_state):
@@ -89,6 +92,46 @@ func chat():
 	target_speed = 0
 	idle_timer = 0
 
+func set_shield(level: int) -> void:
+	shield_level = max(level, 0)
+	if shield_level <= 0:
+		clear_shield()
+		return
+	if shield_sprite == null:
+		shield_sprite = Sprite2D.new()
+		shield_sprite.scale = Vector2(0.2, 0.2)
+		shield_sprite.offset = Vector2(0, -80)
+		add_child(shield_sprite)
+	_update_shield_texture()
+
+func _update_shield_texture() -> void:
+	if shield_sprite == null:
+		return
+	if shield_level >= 3:
+		shield_sprite.texture = load("res://mini_test/shield/blue_shield.png")
+	elif shield_level == 2:
+		shield_sprite.texture = load("res://mini_test/shield/yellow_shield.png")
+	elif shield_level == 1:
+		shield_sprite.texture = load("res://mini_test/shield/red_Shield.png")
+	else:
+		clear_shield()
+
+func clear_shield() -> void:
+	shield_level = 0
+	if shield_sprite != null:
+		shield_sprite.queue_free()
+		shield_sprite = null
+
+func absorb_shield() -> bool:
+	# Returns true if a shield absorbed this hit
+	if shield_level > 0:
+		shield_level -= 1
+		_update_shield_texture()
+		if shield_level <= 0:
+			clear_shield()
+		return true
+	return false
+
 func hit_trap(slide_time: float):
 	var start_state = state
 	self.state = RaceState.Stunned
@@ -107,13 +150,21 @@ func hit_trap(slide_time: float):
 #Would like to make a commmand for users to remove themself from the lurker 
 func leave_race():
 	print(username, " has left the race")
+	# Save current state before setting Out (for rejoin logic)
+	if state == RaceState.InThePit or state == RaceState.Pitting:
+		last_state_before_leave = RaceState.InThePit
+	else:
+		last_state_before_leave = RaceState.Racing
 	car_sprite.visible = false
+	# Clear shield when leaving
+	clear_shield()
 	state = RaceState.Out
 #	we need to remove pic from track not just stats 
 
 func join_race():
 	print(username, " has joined the race")
 	car_sprite.visible = true
+	car_sprite.modulate = Color(1.0, 1.0, 1.0, 1.0)
 	idle_timer = 0
 	lap_count = 0
 	progress = 0
@@ -122,6 +173,26 @@ func join_race():
 	target_speed = 0.0
 	remove_crown()
 	state = RaceState.Racing
+
+# Smart rejoin: restore to pit or track based on where they left
+func rejoin_race():
+	print(username, " has rejoined the race (restoring to track)")
+	car_sprite.visible = true
+	car_sprite.modulate = Color(1.0, 1.0, 1.0, 1.0)
+	idle_timer = 0
+	speed = 0.0
+	target_speed = 0.0
+	remove_crown()
+
+	# Reset in-race stats when a player rejoins after leaving.
+	# This ensures the rejoined player starts fresh on the main track.
+	progress = 0
+	previous_progress = 0.0
+	lap_count = 0
+	total_distance = 0.0
+	# Always set to Racing on rejoin (will be reparented to track by LurkerGang)
+	state = RaceState.Racing
+	print(username, " is back at the track start (stats reset)")
 	
 func _kick(target_username: String) -> void:
 	if username.to_lower() == target_username.to_lower():
@@ -141,6 +212,8 @@ func leave_pit():
 	if state != RaceState.InThePit:
 		return
 	print(username, " is leaving the pit")
+	# Restore sprite color
+	car_sprite.modulate = Color(1.0, 1.0, 1.0, 1.0)
 	state = RaceState.LeavingThePit
 	idle_timer = 0
 	progress = 0
@@ -149,7 +222,11 @@ func leave_pit():
 	
 func enter_pit():
 	print(username, " has entered the pit")
-	state = RaceState.Pitting
+	# Shields reset on pit entry
+	clear_shield()
+	# Grey out sprite in pit lane (full opacity)
+	car_sprite.modulate = Color(0.5, 0.5, 0.5, 1.0)
+	state = RaceState.InThePit
 
 func set_crown(crown_texture: Texture2D) -> void:
 	if crown_sprite == null:

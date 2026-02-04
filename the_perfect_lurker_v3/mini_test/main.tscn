@@ -1,8 +1,7 @@
-[gd_scene load_steps=40 format=3 uid="uid://brlanoyshjsn5"]
+[gd_scene load_steps=42 format=3 uid="uid://brlanoyshjsn5"]
 
 [ext_resource type="Texture2D" uid="uid://b3q0lw3anqx4q" path="res://scenary/track_one.png" id="1_0odxb"]
 [ext_resource type="Texture2D" uid="uid://pxfuc1ur8jl" path="res://scenary/track_three/smb-anniversary-super-mario-64-power-star2.png" id="4_xuqvo"]
-[ext_resource type="PackedScene" uid="uid://8wic177nek8f" path="res://lurkers/lurker_root.tscn" id="5_6iwvi"]
 [ext_resource type="Texture2D" uid="uid://baekccwefjney" path="res://scenary/track_two/figure8_00001.png" id="5_074og"]
 [ext_resource type="Texture2D" uid="uid://d1ks5rl8q3sbw" path="res://scenary/track_three/TRACK1SOLID.png" id="5_qsp4k"]
 [ext_resource type="Script" uid="uid://butgpbst4m4ak" path="res://events/event_stream.gd" id="6_24hdv"]
@@ -16,6 +15,7 @@
 [ext_resource type="Script" uid="uid://46784si0xm1n" path="res://trap/trap_dropper.gd" id="9_bmp00"]
 [ext_resource type="Texture2D" uid="uid://4lhiy5fpbe5o" path="res://trap/oil.png" id="12_n7tv0"]
 [ext_resource type="PackedScene" uid="uid://qcha3mr66hu8" path="res://trap/trap.tscn" id="13_l7mv5"]
+[ext_resource type="Script" uid="uid://dwog8c7irqdlc" path="res://lurkers/lurker.gd" id="13_xuqvo"]
 [ext_resource type="Script" uid="uid://cpfgp7tte8ljh" path="res://missile/missle_launcher.gd" id="14_8sav2"]
 [ext_resource type="Texture2D" uid="uid://c3abdgi70hgy1" path="res://trap/frame0006.png" id="15_d13ii"]
 [ext_resource type="Texture2D" uid="uid://dcpeol1yd878a" path="res://trap/lurker images.png" id="16_1u8w0"]
@@ -92,6 +92,22 @@ _data = {
 }
 point_count = 51
 
+[sub_resource type="CircleShape2D" id="CircleShape2D_ji8g8"]
+radius = 40.0
+
+[sub_resource type="PackedScene" id="PackedScene_qsp4k"]
+_bundled = {
+"conn_count": 0,
+"conns": PackedInt32Array(),
+"editable_instances": [],
+"names": PackedStringArray("lurker_path", "rotates", "cubic_interp", "script", "max_speed", "acceleration_rate", "deceleration_rate", "target_rate", "idle_time_before_pitting", "PathFollow2D", "lurker_sprite", "scale", "Sprite2D", "lurker_area", "input_pickable", "Area2D", "lurker_collision", "shape", "CollisionShape2D"),
+"node_count": 4,
+"node_paths": [],
+"nodes": PackedInt32Array(-1, -1, 9, 0, -1, 8, 1, 0, 2, 0, 3, 1, 4, 2, 5, 3, 6, 4, 7, 5, 8, 6, 0, 0, 0, 12, 10, -1, 1, 11, 7, 0, 0, 0, 15, 13, -1, 1, 14, 0, 0, 2, 0, 18, 16, -1, 1, 17, 8, 0),
+"variants": [false, ExtResource("13_xuqvo"), 350.0, 15.0, 40.0, 50.0, 1.0, Vector2(0.25, 0.25), SubResource("CircleShape2D_ji8g8")],
+"version": 3
+}
+
 [node name="root" type="Node2D"]
 metadata/_edit_vertical_guides_ = [1920.0]
 
@@ -112,10 +128,18 @@ curve = SubResource("Curve2D_kq58d")
 [node name="pit_enter" type="Area2D" parent="track"]
 position = Vector2(252, 53)
 metadata/pit_enter = true
+metadata/_edit_lock_ = true
 
 [node name="shape" type="CollisionShape2D" parent="track/pit_enter"]
 shape = SubResource("CircleShape2D_0odxb")
 metadata/_edit_lock_ = true
+
+[node name="pit_lane" type="Area2D" parent="track"]
+position = Vector2(378, 665)
+metadata/pit_enter = true
+
+[node name="shape" type="CollisionShape2D" parent="track/pit_lane"]
+shape = SubResource("CircleShape2D_0odxb")
 
 [node name="pit_exit" type="Area2D" parent="track"]
 position = Vector2(733, 754)
@@ -126,6 +150,7 @@ shape = SubResource("CircleShape2D_0odxb")
 metadata/_edit_lock_ = true
 
 [node name="track2" type="Node2D" parent="."]
+visible = false
 
 [node name="Figure800001" type="Sprite2D" parent="track2"]
 position = Vector2(590, 347)
@@ -146,10 +171,18 @@ curve = SubResource("Curve2D_seu75")
 [node name="pit_enter" type="Area2D" parent="track2"]
 position = Vector2(410, 136)
 metadata/pit_enter = true
+metadata/_edit_lock_ = true
 
 [node name="shape" type="CollisionShape2D" parent="track2/pit_enter"]
 shape = SubResource("CircleShape2D_0odxb")
 metadata/_edit_lock_ = true
+
+[node name="pit_lane" type="Area2D" parent="track2"]
+position = Vector2(536, 542)
+metadata/pit_enter = true
+
+[node name="shape" type="CollisionShape2D" parent="track2/pit_lane"]
+shape = SubResource("CircleShape2D_0odxb")
 
 [node name="pit_exit" type="Area2D" parent="track2"]
 position = Vector2(627, 303)
@@ -160,9 +193,9 @@ shape = SubResource("CircleShape2D_0odxb")
 metadata/_edit_lock_ = true
 
 [node name="track3" type="Node2D" parent="."]
-visible = false
 
 [node name="MinimapBase" type="Sprite2D" parent="track3"]
+visible = false
 position = Vector2(543, 429)
 scale = Vector2(1.197, 1.061)
 texture = ExtResource("6_getpj")
@@ -180,10 +213,18 @@ curve = SubResource("Curve2D_htxhm")
 [node name="pit_enter" type="Area2D" parent="track3"]
 position = Vector2(733, 161)
 metadata/pit_enter = true
+metadata/_edit_lock_ = true
 
 [node name="shape" type="CollisionShape2D" parent="track3/pit_enter"]
 shape = SubResource("CircleShape2D_0odxb")
 metadata/_edit_lock_ = true
+
+[node name="pit_lane" type="Area2D" parent="track3"]
+position = Vector2(512, 802)
+metadata/pit_enter = true
+
+[node name="shape" type="CollisionShape2D" parent="track3/pit_lane"]
+shape = SubResource("CircleShape2D_0odxb")
 
 [node name="pit_exit" type="Area2D" parent="track3"]
 position = Vector2(969, 583)
@@ -236,10 +277,18 @@ curve = SubResource("Curve2D_jq2sk")
 [node name="pit_enter" type="Area2D" parent="track4"]
 position = Vector2(603, 542)
 metadata/pit_enter = true
+metadata/_edit_lock_ = true
 
 [node name="shape" type="CollisionShape2D" parent="track4/pit_enter"]
 shape = SubResource("CircleShape2D_0odxb")
 metadata/_edit_lock_ = true
+
+[node name="pit_lane" type="Area2D" parent="track4"]
+position = Vector2(557, 183)
+metadata/pit_enter = true
+
+[node name="shape" type="CollisionShape2D" parent="track4/pit_lane"]
+shape = SubResource("CircleShape2D_0odxb")
 
 [node name="pit_exit" type="Area2D" parent="track4"]
 position = Vector2(771, 288)
@@ -279,10 +328,17 @@ curve = SubResource("Curve2D_xuqvo")
 [node name="pit_enter" type="Area2D" parent="track5"]
 position = Vector2(535.965, 52.5832)
 metadata/pit_enter = true
+metadata/_edit_lock_ = true
 
 [node name="shape" type="CollisionShape2D" parent="track5/pit_enter"]
 shape = SubResource("CircleShape2D_0odxb")
-metadata/_edit_lock_ = true
+
+[node name="pit_lane" type="Area2D" parent="track5"]
+position = Vector2(535.965, 386.583)
+metadata/pit_enter = true
+
+[node name="shape" type="CollisionShape2D" parent="track5/pit_lane"]
+shape = SubResource("CircleShape2D_0odxb")
 
 [node name="pit_exit" type="Area2D" parent="track5"]
 position = Vector2(429.965, 287.583)
@@ -302,14 +358,13 @@ script = ExtResource("6_24hdv")
 script = ExtResource("8_lbh5e")
 event_stream = NodePath("../event_stream")
 timer = NodePath("event_timer")
-enabled = true
 
 [node name="event_timer" type="Timer" parent="managers/faker"]
 autostart = true
 
 [node name="lurker_gang" type="Node" parent="managers"]
 script = ExtResource("8_pj5m8")
-lurker_prefab = ExtResource("5_6iwvi")
+lurker_prefab = SubResource("PackedScene_qsp4k")
 
 [node name="traps" type="Node" parent="managers"]
 script = ExtResource("9_bmp00")
@@ -331,10 +386,9 @@ disk_cache = true
 
 [node name="track_manager" type="Node" parent="managers" node_paths=PackedStringArray("select_track")]
 script = ExtResource("18_cegan")
-select_track = NodePath("../../track2")
+select_track = NodePath("../../track3")
 
 [node name="ui_root" type="MarginContainer" parent="."]
-visible = false
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0

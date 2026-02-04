@@ -9,11 +9,11 @@ radius = 40.0
 rotates = false
 cubic_interp = false
 script = ExtResource("1_22s53")
-max_speed = 350.0
+max_speed = 80.0
 acceleration_rate = 15.0
-deceleration_rate = 40.0
-target_rate = 50.0
-idle_time_before_pitting = 1.0
+deceleration_rate = 60.0
+target_rate = 25.0
+idle_time_before_pitting = 10.0
 
 [node name="lurker_sprite" type="Sprite2D" parent="."]
 scale = Vector2(0.25, 0.25)

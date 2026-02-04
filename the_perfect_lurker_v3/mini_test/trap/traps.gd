@@ -7,8 +7,10 @@ class_name Trap
 @export var sprite: Sprite2D
 
 @onready var area: Area2D = $'.'
+@onready var event_stream: EventStream = $/root/root/managers/event_stream
 
 var dropped_by: String
+var trap_type: String = "unknown"
 
 func _ready() -> void:
 	var drop_ignore_timer = Timer.new()
@@ -16,7 +18,7 @@ func _ready() -> void:
 	drop_ignore_timer.wait_time = drop_safe_time
 	drop_ignore_timer.timeout.connect(func():
 		drop_ignore_timer.queue_free()
-		self.dropped_by = ""
+		# Don't clear dropped_by - we need it for logging when trap is hit
 	)
 	drop_ignore_timer.start()
 
@@ -32,6 +34,9 @@ func _on_trap_area_area_entered(other: Area2D) -> void:
 		return
 		
 	print("trap hit by ", lurker.name)
+	
+	# Emit trap_hit signal for logging
+	event_stream.trap_hit.emit(trap_type, lurker.username, dropped_by)
 	
 	lurker.hit_trap(self.slide_time)
 	trap_root.queue_free()

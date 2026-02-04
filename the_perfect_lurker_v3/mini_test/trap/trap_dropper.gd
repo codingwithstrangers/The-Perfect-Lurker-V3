@@ -26,10 +26,20 @@ func _on_trap_drop_attempted(username: String):
 	print(username, " dropped a trap")
 	
 	var new_trap = trap_prefab.instantiate()
-	add_child(new_trap)
+	track_manager.track.add_child(new_trap)
 	var trap = new_trap as Trap
 	trap.name = username + "_trap"
-	trap.sprite.texture = self.trap_textures[randi_range(0, self.trap_textures.size()-1)]
+	
+	var trap_index = randi_range(0, self.trap_textures.size()-1)
+	trap.sprite.texture = self.trap_textures[trap_index]
+	
+	# Determine trap type from texture name
+	var texture_path = self.trap_textures[trap_index].resource_path
+	if "red" in texture_path.to_lower():
+		trap.trap_type = "red_shell"
+	else:
+		trap.trap_type = "yellow_attack"
+	
 	trap.rotate(randf_range(0, PI*2))
 	trap.position = lurker.position
 	trap.dropped_by = username

@@ -106,11 +106,19 @@ func _initialize_track(track_node: Node2D) -> void:
 			t.visible = false
 			
 func send_to_pit(username: String) -> void:
-	#We have the user name from the signal now we want to move it to the pit (we already know the location and lurker stats this is not handled here )
-	#You know have a reference to the lurker gang now you can use the lurkers 
+	# Send lurker to pit_lane area instead of pit track
 	var lurker = lurker_gang.lurkers[username]
-	lurker.call_deferred("reparent", pit)
+	var pit_lane = select_track.find_child('pit_lane')
+	if pit_lane:
+		# Position lurker at pit_lane location with random offset to avoid overlapping
+		var random_offset = Vector2(randf_range(-50, 50), randf_range(-50, 50))
+		lurker.global_position = pit_lane.global_position + random_offset
+		lurker.enter_pit()
 
 func send_to_track(username: String) -> void:
+	# Return lurker to track from pit_lane
 	var lurker = lurker_gang.lurkers[username]
-	lurker.call_deferred("reparent", track)
+	# Reparent to track if needed (in case they were elsewhere)
+	if lurker.get_parent() != track:
+		lurker.call_deferred("reparent", track)
+	lurker.leave_pit()

@@ -21,19 +21,25 @@ var steps = [
 	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
 	func(): event_stream.lurker_chat.emit("codingwithstrangers"),
 	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
-	func(): event_stream.leave_the_pit.emit("miniscruff"),
+	# Simulate pit logic: explicitly send users to pit_lane, they'll be greyed out
+	func(): event_stream.send_to_pit.emit("miniscruff"),
+	func(): event_stream.send_to_pit.emit("codingwithstrangers"),
+	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
+	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
+	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
+	# Token redemption to leave pit_lane and return to track
 	func(): event_stream.leave_the_pit.emit("codingwithstrangers"),
-	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
-	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
-	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
-	func(): event_stream.send_to_track.emit("codingwithstrangers"),
 	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
 	func(): event_stream.leave_the_pit.emit("miniscruff"),
-	func(): event_stream.send_to_track.emit("miniscruff"),
 	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
 	func(): event_stream.kick_user.emit("miniscruff"),
 	func(): event_stream.leave_race_attempted.emit("codingwithstrangers"),
 	func(): event_stream.join_race_attempted.emit("codingwithstrangers", "https://static-cdn.jtvnw.net/jtv_user_pictures/dc386d21-87c4-498e-8d53-bad77fc23141-profile_image-300x300.png"),
+	# Test unban flow for miniscruff
+	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,  # Wait a few ticks
+	func(): event_stream.unban_user.emit("miniscruff"),  # Streamer unbans miniscruff
+	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,  # Wait for unban to process
+	func(): event_stream.join_race_attempted.emit("miniscruff", "https://static-cdn.jtvnw.net/jtv_user_pictures/19226552-258a-4158-9f31-7877da18875c-profile_image-300x300.png"),  # miniscruff tries to rejoin
 	
 ]
 
