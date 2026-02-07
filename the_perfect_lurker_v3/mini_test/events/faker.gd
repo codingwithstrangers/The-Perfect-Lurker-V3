@@ -10,6 +10,9 @@ var index = 0
 var steps = [
 	func(): event_stream.join_race_attempted.emit("miniscruff", "https://static-cdn.jtvnw.net/jtv_user_pictures/19226552-258a-4158-9f31-7877da18875c-profile_image-300x300.png"),
 	func(): event_stream.join_race_attempted.emit("codingwithstrangers", "https://static-cdn.jtvnw.net/jtv_user_pictures/dc386d21-87c4-498e-8d53-bad77fc23141-profile_image-300x300.png"),
+	# Grant shields at race start for testing
+	func(): event_stream.grant_shield.emit("miniscruff"),
+	func(): event_stream.grant_shield.emit("codingwithstrangers"),
 	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
 	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
 	func(): event_stream.lurker_chat.emit("codingwithstrangers"),

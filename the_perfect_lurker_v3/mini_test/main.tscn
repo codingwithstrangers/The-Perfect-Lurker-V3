@@ -1,4 +1,4 @@
-[gd_scene load_steps=42 format=3 uid="uid://brlanoyshjsn5"]
+[gd_scene load_steps=40 format=3 uid="uid://brlanoyshjsn5"]
 
 [ext_resource type="Texture2D" uid="uid://b3q0lw3anqx4q" path="res://scenary/track_one.png" id="1_0odxb"]
 [ext_resource type="Texture2D" uid="uid://pxfuc1ur8jl" path="res://scenary/track_three/smb-anniversary-super-mario-64-power-star2.png" id="4_xuqvo"]
@@ -15,7 +15,7 @@
 [ext_resource type="Script" uid="uid://46784si0xm1n" path="res://trap/trap_dropper.gd" id="9_bmp00"]
 [ext_resource type="Texture2D" uid="uid://4lhiy5fpbe5o" path="res://trap/oil.png" id="12_n7tv0"]
 [ext_resource type="PackedScene" uid="uid://qcha3mr66hu8" path="res://trap/trap.tscn" id="13_l7mv5"]
-[ext_resource type="Script" uid="uid://dwog8c7irqdlc" path="res://lurkers/lurker.gd" id="13_xuqvo"]
+[ext_resource type="PackedScene" uid="uid://i1npufpvi7qf" path="res://lurkers/lurker_root.tscn" id="13_xuqvo"]
 [ext_resource type="Script" uid="uid://cpfgp7tte8ljh" path="res://missile/missle_launcher.gd" id="14_8sav2"]
 [ext_resource type="Texture2D" uid="uid://c3abdgi70hgy1" path="res://trap/frame0006.png" id="15_d13ii"]
 [ext_resource type="Texture2D" uid="uid://dcpeol1yd878a" path="res://trap/lurker images.png" id="16_1u8w0"]
@@ -91,22 +91,6 @@ _data = {
 "points": PackedVector2Array(0, 0, 0, 0, -89.0851, -188.431, 0, 0, 0, 0, -101.328, -168.414, 36.0266, -7.90285, -36.0266, 7.90285, -138.785, -116.164, 0, 0, 0, 0, -228.107, -106.833, 0, 0, 0, 0, -300.141, -136.69, 15.1079, -10.1608, -15.1079, 10.1608, -359.689, -140.423, -12.7836, -24.8375, 12.7836, 24.8375, -378.898, -73.2437, 0, 0, 0, 0, -316.469, -39.6542, 0, 0, 0, 0, -281.893, -34.0559, 0, 0, 0, 0, -246.356, 1.3996, -16.2701, -7.90285, 16.2701, 7.90285, -206.977, 18.1943, -5.81073, -18.0637, 5.81073, 18.0637, -175.283, 64.8463, 0, 0, 0, 0, -179.124, 108.699, 9.50848, -19.5005, -9.50848, 19.5005, -195.452, 148.82, 3.48644, -12.4188, -3.48644, 12.4188, -260.763, 226.262, -12.7836, -9.03183, 12.7836, 9.03183, -257.881, 284.111, -23.2429, 2.25796, 23.2429, -2.25796, -201.215, 307.437, 0, 0, 0, 0, -155.113, 267.316, -25.3559, 24.6323, 25.3559, -24.6323, -119.576, 226.262, 0, 0, 0, 0, -66.7514, 168.414, -31.378, 1.12898, 31.378, -1.12898, -27.3729, 153.485, -20.9186, -14.6767, 20.9186, 14.6767, 23.531, 170.28, 0, 0, 0, 0, 75.3954, 224.396, -13.9458, -5.6449, 13.9458, 5.6449, 127.26, 304.638, -24.4051, 11.2898, 24.4051, -11.2898, 182.006, 301.839, 0, 25.9665, 0, -25.9665, 214.661, 251.454, 0, 0, 0, 0, 171.441, 189.874, 0, 0, 0, 0, 117.655, 96.5697, -11.6215, 16.9347, 11.6215, -16.9347, 115.734, 52.7168, -25.2503, 6.05543, 25.2503, -6.05543, 162.797, 11.6631, 0, 0, 0, 0, 223.305, -23.7925, -25.5672, 23.7086, 25.5672, -23.7086, 318.39, -62.9802, 0, 0, 0, 0, 317.429, -130.159, 27.8915, -1.12898, -27.8915, 1.12898, 265.565, -146.954, 19.3339, -11.9056, -19.3339, 11.9056, 198.333, -122.695, 32.2232, 1.43688, -32.2232, -1.43688, 128.22, -103.101, 0, 0, 0, 0, 63.87, -119.896, 12.1497, 28.3271, -12.1497, -28.3271, 42.7401, -153.485, 0, 0, 0, 0, 20.6497, -213.2, 0, 0, 0, 0, 19.6892, -266.383, 0, 0, 0, 0, 26.4124, -332.629, 25.3559, -3.07903, -25.3559, 3.07903, -24.4915, -366.218, 13.7345, -16.4215, -13.7345, 16.4215, -68.6723, -345.692, 0, 0, 0, 0, -76.356, -292.508, 0, 0, 0, 0, 97.9133, 175.285, 0, 0, 0, 0, -216.693, -53.4619, 0, 0, 0, 0, 169.342, -53.4619, 0, 0, 0, 0, -144.462, 171.779, -22.3355, 64.6889, 22.3355, -64.6889, -28.8925, -205.083, 39.13, -6.05457, -39.13, 6.05457, -52.9696, -284.838, 0, 0, 0, 0, -89.0851, -188.431)
 }
 point_count = 51
-
-[sub_resource type="CircleShape2D" id="CircleShape2D_ji8g8"]
-radius = 40.0
-
-[sub_resource type="PackedScene" id="PackedScene_qsp4k"]
-_bundled = {
-"conn_count": 0,
-"conns": PackedInt32Array(),
-"editable_instances": [],
-"names": PackedStringArray("lurker_path", "rotates", "cubic_interp", "script", "max_speed", "acceleration_rate", "deceleration_rate", "target_rate", "idle_time_before_pitting", "PathFollow2D", "lurker_sprite", "scale", "Sprite2D", "lurker_area", "input_pickable", "Area2D", "lurker_collision", "shape", "CollisionShape2D"),
-"node_count": 4,
-"node_paths": [],
-"nodes": PackedInt32Array(-1, -1, 9, 0, -1, 8, 1, 0, 2, 0, 3, 1, 4, 2, 5, 3, 6, 4, 7, 5, 8, 6, 0, 0, 0, 12, 10, -1, 1, 11, 7, 0, 0, 0, 15, 13, -1, 1, 14, 0, 0, 2, 0, 18, 16, -1, 1, 17, 8, 0),
-"variants": [false, ExtResource("13_xuqvo"), 350.0, 15.0, 40.0, 50.0, 1.0, Vector2(0.25, 0.25), SubResource("CircleShape2D_ji8g8")],
-"version": 3
-}
 
 [node name="root" type="Node2D"]
 metadata/_edit_vertical_guides_ = [1920.0]
@@ -195,7 +179,6 @@ metadata/_edit_lock_ = true
 [node name="track3" type="Node2D" parent="."]
 
 [node name="MinimapBase" type="Sprite2D" parent="track3"]
-visible = false
 position = Vector2(543, 429)
 scale = Vector2(1.197, 1.061)
 texture = ExtResource("6_getpj")
@@ -358,13 +341,14 @@ script = ExtResource("6_24hdv")
 script = ExtResource("8_lbh5e")
 event_stream = NodePath("../event_stream")
 timer = NodePath("event_timer")
+enabled = true
 
 [node name="event_timer" type="Timer" parent="managers/faker"]
 autostart = true
 
 [node name="lurker_gang" type="Node" parent="managers"]
 script = ExtResource("8_pj5m8")
-lurker_prefab = SubResource("PackedScene_qsp4k")
+lurker_prefab = ExtResource("13_xuqvo")
 
 [node name="traps" type="Node" parent="managers"]
 script = ExtResource("9_bmp00")
@@ -389,6 +373,7 @@ script = ExtResource("18_cegan")
 select_track = NodePath("../../track3")
 
 [node name="ui_root" type="MarginContainer" parent="."]
+visible = false
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0

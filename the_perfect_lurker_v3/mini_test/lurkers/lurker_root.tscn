@@ -1,6 +1,6 @@
-[gd_scene load_steps=3 format=3 uid="uid://8wic177nek8f"]
+[gd_scene load_steps=3 format=3 uid="uid://i1npufpvi7qf"]
 
-[ext_resource type="Script" uid="uid://dwog8c7irqdlc" path="res://lurkers/lurker.gd" id="1_22s53"]
+[ext_resource type="Script" uid="uid://dwog8c7irqdlc" path="res://lurkers/lurker.gd" id="1_l3w0l"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_ji8g8"]
 radius = 40.0
@@ -8,11 +8,11 @@ radius = 40.0
 [node name="lurker_path" type="PathFollow2D"]
 rotates = false
 cubic_interp = false
-script = ExtResource("1_22s53")
-max_speed = 80.0
+script = ExtResource("1_l3w0l")
+max_speed = 350.0
 acceleration_rate = 15.0
-deceleration_rate = 60.0
-target_rate = 25.0
+deceleration_rate = 40.0
+target_rate = 50.0
 idle_time_before_pitting = 10.0
 
 [node name="lurker_sprite" type="Sprite2D" parent="."]

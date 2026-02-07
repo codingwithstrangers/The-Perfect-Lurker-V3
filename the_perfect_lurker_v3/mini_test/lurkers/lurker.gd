@@ -9,6 +9,9 @@ signal lap_completed(user_name: String, lap_count: int)
 @export var deceleration_rate: float
 @export var target_rate: float
 @export_range(0, 60, 1, "suffix:minutes") var idle_time_before_pitting: float
+@export var shield_scale: Vector2 = Vector2(0.2, 0.2)
+@export var shield_offset: Vector2 = Vector2(0, -80)
+@export_range(0.0, 1.0, 0.01) var shield_opacity: float = 1.0
 
 @onready var debugger: Debugger = $/root/debugger
 @onready var car_sprite: Sprite2D = $lurker_sprite
@@ -99,9 +102,10 @@ func set_shield(level: int) -> void:
 		return
 	if shield_sprite == null:
 		shield_sprite = Sprite2D.new()
-		shield_sprite.scale = Vector2(0.2, 0.2)
-		shield_sprite.offset = Vector2(0, -80)
 		add_child(shield_sprite)
+	shield_sprite.scale = shield_scale
+	shield_sprite.offset = shield_offset
+	shield_sprite.modulate = Color(1, 1, 1, shield_opacity)
 	_update_shield_texture()
 
 func _update_shield_texture() -> void:
