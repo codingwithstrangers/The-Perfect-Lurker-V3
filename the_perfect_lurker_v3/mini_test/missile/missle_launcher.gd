@@ -23,6 +23,12 @@ func _on_missle_launch_attempted(username: String):
 		
 	print("missle is launching: ", username)
 	
+	# Check if launcher is in 1st place
+	var is_first_place = false
+	if lurker_gang.rankings.size() > 0 and lurker_gang.rankings[0] == username:
+		is_first_place = true
+		print(username, " is in 1st place - missile will boomerang!")
+	
 	var new_missle = missle_prefab.instantiate()
 	track_manager.track.add_child(new_missle)
 	lurker.idle_timer = 0
@@ -31,7 +37,12 @@ func _on_missle_launch_attempted(username: String):
 	missle.name = username + "_missle"
 	missle.sprite.texture = self.missle_textures[randi_range(0, self.missle_textures.size()-1)]
 	missle.progress = lurker.progress
+	missle.initial_progress = lurker.progress
+	missle.is_boomerang = is_first_place
 	missle.trap.dropped_by = username
+	missle.trap.dropped_on_lap = lurker.lap_count  # Store launcher's lap for consistency
+	missle.trap.trap_type = "red_shell"
+	missle.trap.allow_self_damage = is_first_place  # Only boomerangs can hit their launcher
 #
 #func _on_missle_launch_attempted(username: String):
 	#if not lurker_gang.lurkers.has(username):

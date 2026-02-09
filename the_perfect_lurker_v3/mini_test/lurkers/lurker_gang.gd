@@ -22,6 +22,9 @@ var user_stats: Dictionary = {}  # {username: {races_joined, rejoin_count, leave
 var victim_details: Dictionary = {}  # {username: {"yellow_attack": {victim: count}, "red_shell": {victim: count}}}
 var attacker_details: Dictionary = {}  # {username: {"yellow_attack": {attacker: count}, "red_shell": {attacker: count}}}
 var placement_counts: Dictionary = {}  # {username: {1st: count, 2nd: count, 3rd: count}}
+var shield_breaker_details: Dictionary = {}  # {username: {victim: count}} - tracks who broke final shield on whom
+var shield_hit_details: Dictionary = {}  # {username: {trap_type: {victim: count}}} - all shield hits by user
+var shield_hits_on_user: Dictionary = {}  # {username: {attacker: count}} - all shield hits received by user
 
 func _ready():
 	event_stream.join_race_attempted.connect(self._on_join_race_attempted)
@@ -32,6 +35,8 @@ func _ready():
 	event_stream.kick_user.connect(self._on_kick_user)
 	event_stream.unban_user.connect(self._on_unban_user)
 	event_stream.trap_hit.connect(self._on_trap_hit)
+	event_stream.trap_shield_hit.connect(self._on_trap_shield_hit)
+	event_stream.grant_shield.connect(self._on_grant_shield)
 
 	_load_crown_textures()
 	_load_kicked_users()
@@ -153,11 +158,17 @@ func _on_unban_user(user_name: String):
 		_save_kicked_users()
 		var message = user_name + " has been unbanned and can rejoin!"
 		print(message)
-		event_stream.system_message.emit(message)
+
+func _on_grant_shield(user_name: String) -> void:
+	if lurkers.has(user_name):
+		lurkers[user_name].set_shield(3)
+		var msg = user_name + " granted shield (3)"
+		print(msg)
+		event_stream.system_message.emit(msg)
 	else:
-		var message = user_name + " is not on the ban list."
-		print(message)
-		event_stream.system_message.emit(message)
+		var msg = user_name + " is not in the race."
+		print(msg)
+		event_stream.system_message.emit(msg)
 
 func _on_leave_race_attempted(user_name: String):
 	if lurkers.has(user_name):
@@ -295,7 +306,7 @@ func _initialize_traps_csv() -> void:
 		if file == null:
 			push_error("Failed to create traps_log.csv")
 			return
-		file.store_line("timestamp,trap_type,hit_by,dropped_by")
+		file.store_line("timestamp,trap_type,hit_by,dropped_by,shield_hit,shield_breaker")
 
 func _log_trap_hit(trap_type: String, hit_by: String, dropped_by: String) -> void:
 	var file = FileAccess.open(traps_csv_path, FileAccess.READ_WRITE)
@@ -307,7 +318,21 @@ func _log_trap_hit(trap_type: String, hit_by: String, dropped_by: String) -> voi
 	file.seek_end()
 	
 	var timestamp = Time.get_ticks_msec()
-	var line = str(timestamp) + "," + trap_type + "," + hit_by + "," + dropped_by
+	var line = str(timestamp) + "," + trap_type + "," + hit_by + "," + dropped_by + ",0,0"
+	file.store_line(line)
+
+func _log_shield_hit(trap_type: String, dropped_by: String, hit_by: String, shield_level_before: int) -> void:
+	var file = FileAccess.open(traps_csv_path, FileAccess.READ_WRITE)
+	if file == null:
+		push_error("Failed to open traps_log.csv for appending")
+		return
+	
+	# Seek to end of file
+	file.seek_end()
+	
+	var timestamp = Time.get_ticks_msec()
+	var shield_breaker = 1 if shield_level_before == 1 else 0
+	var line = str(timestamp) + "," + trap_type + "," + hit_by + "," + dropped_by + ",1," + str(shield_breaker)
 	file.store_line(line)
 
 func _on_trap_hit(trap_type: String, hit_by: String, dropped_by: String) -> void:
@@ -345,6 +370,34 @@ func _on_trap_hit(trap_type: String, hit_by: String, dropped_by: String) -> void
 	if not victim_details[dropped_by][trap_type].has(hit_by):
 		victim_details[dropped_by][trap_type][hit_by] = 0
 	victim_details[dropped_by][trap_type][hit_by] += 1
+
+func _on_trap_shield_hit(trap_type: String, dropped_by: String, hit_by: String, shield_level_before: int, shield_level_after: int) -> void:
+	print("Shield hit - Type: ", trap_type, " Hit by: ", hit_by, " Dropped by: ", dropped_by, " Before: ", shield_level_before, " After: ", shield_level_after)
+	_log_shield_hit(trap_type, dropped_by, hit_by, shield_level_before)
+	
+	# Track shield breaker (if this was the last shield hit - level 1 before)
+	if shield_level_before == 1:
+		if not shield_breaker_details.has(dropped_by):
+			shield_breaker_details[dropped_by] = {}
+		if not shield_breaker_details[dropped_by].has(hit_by):
+			shield_breaker_details[dropped_by][hit_by] = 0
+		shield_breaker_details[dropped_by][hit_by] += 1
+	
+	# Track all shield hits by attacker (WHO threw at WHO)
+	if not shield_hit_details.has(dropped_by):
+		shield_hit_details[dropped_by] = {}
+	if not shield_hit_details[dropped_by].has(trap_type):
+		shield_hit_details[dropped_by][trap_type] = {}
+	if not shield_hit_details[dropped_by][trap_type].has(hit_by):
+		shield_hit_details[dropped_by][trap_type][hit_by] = 0
+	shield_hit_details[dropped_by][trap_type][hit_by] += 1
+	
+	# Track all shield hits on user (WHO was hit)
+	if not shield_hits_on_user.has(hit_by):
+		shield_hits_on_user[hit_by] = {}
+	if not shield_hits_on_user[hit_by].has(dropped_by):
+		shield_hits_on_user[hit_by][dropped_by] = 0
+	shield_hits_on_user[hit_by][dropped_by] += 1
 
 func _initialize_race_events_csv() -> void:
 	var file = FileAccess.open(race_events_csv_path, FileAccess.READ)

@@ -43,6 +43,7 @@ func _on_trap_drop_attempted(username: String):
 	trap.rotate(randf_range(0, PI*2))
 	trap.position = lurker.position
 	trap.dropped_by = username
+	trap.dropped_on_lap = lurker.lap_count  # Store dropper's current lap
 	
 	var curve_point = track_manager.track.curve.sample_baked(lurker.progress - self.drop_distance)
 	var trap_pos = track_manager.track.curve.get_closest_point(curve_point)

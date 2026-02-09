@@ -17,10 +17,12 @@ trap_root = NodePath(".")
 sprite = NodePath("trap_sprite")
 
 [node name="trap_sprite" type="Sprite2D" parent="."]
+rotation = -0.214676
 scale = Vector2(0.25, 0.25)
 texture = ExtResource("2_pvigq")
 
 [node name="circle_shape" type="CollisionShape2D" parent="."]
+rotation = 1.03323
 shape = SubResource("CircleShape2D_sj270")
 
 [connection signal="area_entered" from="." to="." method="_on_trap_area_area_entered"]

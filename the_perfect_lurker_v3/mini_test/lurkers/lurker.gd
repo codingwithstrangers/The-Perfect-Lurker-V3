@@ -9,8 +9,8 @@ signal lap_completed(user_name: String, lap_count: int)
 @export var deceleration_rate: float
 @export var target_rate: float
 @export_range(0, 60, 1, "suffix:minutes") var idle_time_before_pitting: float
-@export var shield_scale: Vector2 = Vector2(0.2, 0.2)
-@export var shield_offset: Vector2 = Vector2(0, -80)
+@export var shield_scale: Vector2 = Vector2(0.3, 0.3)
+@export var shield_offset: Vector2 = Vector2(0, 0)
 @export_range(0.0, 1.0, 0.01) var shield_opacity: float = 1.0
 
 @onready var debugger: Debugger = $/root/debugger
@@ -102,9 +102,11 @@ func set_shield(level: int) -> void:
 		return
 	if shield_sprite == null:
 		shield_sprite = Sprite2D.new()
-		add_child(shield_sprite)
+		shield_sprite.z_index = 10  # Render above other sprites
+		add_child(shield_sprite)  # Add as sibling to lurker sprite
+	# Use full scale, not affected by car_sprite's 0.25 scale
 	shield_sprite.scale = shield_scale
-	shield_sprite.offset = shield_offset
+	shield_sprite.position = shield_offset
 	shield_sprite.modulate = Color(1, 1, 1, shield_opacity)
 	_update_shield_texture()
 
@@ -112,11 +114,11 @@ func _update_shield_texture() -> void:
 	if shield_sprite == null:
 		return
 	if shield_level >= 3:
-		shield_sprite.texture = load("res://mini_test/shield/blue_shield.png")
+		shield_sprite.texture = load("res://shield/blue_shield.png")
 	elif shield_level == 2:
-		shield_sprite.texture = load("res://mini_test/shield/yellow_shield.png")
+		shield_sprite.texture = load("res://shield/yellow_shield.png")
 	elif shield_level == 1:
-		shield_sprite.texture = load("res://mini_test/shield/red_Shield.png")
+		shield_sprite.texture = load("res://shield/red_Shield.png")
 	else:
 		clear_shield()
 
@@ -126,15 +128,15 @@ func clear_shield() -> void:
 		shield_sprite.queue_free()
 		shield_sprite = null
 
-func absorb_shield() -> bool:
-	# Returns true if a shield absorbed this hit
+func absorb_shield() -> int:
+	# Returns the remaining shield level after absorption (3, 2, 1, or 0)
 	if shield_level > 0:
 		shield_level -= 1
 		_update_shield_texture()
 		if shield_level <= 0:
 			clear_shield()
-		return true
-	return false
+		return shield_level
+	return 0
 
 func hit_trap(slide_time: float):
 	var start_state = state

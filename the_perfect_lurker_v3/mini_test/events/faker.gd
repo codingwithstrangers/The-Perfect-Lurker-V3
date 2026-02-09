@@ -20,11 +20,34 @@ var steps = [
 	func(): event_stream.trap_drop_attempted.emit("codingwithstrangers"),
 	func(): event_stream.missle_launch_attempted.emit("codingwithstrangers"),
 	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
+	# Ban miniscruff in the middle
+	func(): event_stream.kick_user.emit("miniscruff"),
+	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
+	# Unban miniscruff ~10 seconds later
+	func(): event_stream.unban_user.emit("miniscruff"),
+	func(): pass,func(): pass,
+	func(): event_stream.join_race_attempted.emit("miniscruff", "https://static-cdn.jtvnw.net/jtv_user_pictures/19226552-258a-4158-9f31-7877da18875c-profile_image-300x300.png"),
+	func(): event_stream.grant_shield.emit("miniscruff"),
+	# miniscruff drops 2 yellow and 2 red traps
+	func(): event_stream.trap_drop_attempted.emit("miniscruff"),
+	func(): pass,func(): pass,
+	func(): event_stream.trap_drop_attempted.emit("miniscruff"),
+	func(): pass,func(): pass,
+	func(): event_stream.missle_launch_attempted.emit("miniscruff"),
+	func(): pass,func(): pass,
+	func(): event_stream.missle_launch_attempted.emit("miniscruff"),
+	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
 	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
 	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
 	func(): event_stream.lurker_chat.emit("codingwithstrangers"),
 	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
 	# Simulate pit logic: explicitly send users to pit_lane, they'll be greyed out
+		func(): event_stream.lurker_chat.emit("codingwithstrangers"),
+	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
+		func(): event_stream.lurker_chat.emit("codingwithstrangers"),
+	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
+		func(): event_stream.lurker_chat.emit("codingwithstrangers"),
+	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
 	func(): event_stream.send_to_pit.emit("miniscruff"),
 	func(): event_stream.send_to_pit.emit("codingwithstrangers"),
 	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
@@ -35,7 +58,7 @@ var steps = [
 	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
 	func(): event_stream.leave_the_pit.emit("miniscruff"),
 	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
-	func(): event_stream.kick_user.emit("miniscruff"),
+	#func(): event_stream.kick_user.emit("miniscruff"),
 	func(): event_stream.leave_race_attempted.emit("codingwithstrangers"),
 	func(): event_stream.join_race_attempted.emit("codingwithstrangers", "https://static-cdn.jtvnw.net/jtv_user_pictures/dc386d21-87c4-498e-8d53-bad77fc23141-profile_image-300x300.png"),
 	# Test unban flow for miniscruff
@@ -43,7 +66,15 @@ var steps = [
 	func(): event_stream.unban_user.emit("miniscruff"),  # Streamer unbans miniscruff
 	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,  # Wait for unban to process
 	func(): event_stream.join_race_attempted.emit("miniscruff", "https://static-cdn.jtvnw.net/jtv_user_pictures/19226552-258a-4158-9f31-7877da18875c-profile_image-300x300.png"),  # miniscruff tries to rejoin
-	
+	func(): event_stream.lurker_chat.emit("codingwithstrangers"),
+	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
+	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
+	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
+	func(): event_stream.lurker_chat.emit("codingwithstrangers"),
+	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
+	func(): event_stream.lurker_chat.emit("codingwithstrangers"),
+	func(): event_stream.lurker_chat.emit("codingwithstrangers"),
+	func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,func(): pass,
 ]
 
 func _ready():

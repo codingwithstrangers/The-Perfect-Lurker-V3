@@ -82,8 +82,8 @@ func on_chat(sender_data: SenderData, msg: String) -> void:
 			event_stream.lurker_chat.emit(sender_data.user)
 		"!place":
 			_handle_place_command(sender_data.user)
-		"!trivial":
-			_handle_trivial_command(sender_data.user)
+		"!defense":
+			_handle_defense_command(sender_data.user)
 		"!rivial":
 			_handle_faaa_command(sender_data.user)
 		"!snapshot":
@@ -137,7 +137,7 @@ func _handle_place_command(user_name: String) -> void:
 	
 	chat(message)
 
-func _handle_trivial_command(user_name: String) -> void:
+func _handle_defense_command(user_name: String) -> void:
 	if not lurker_gang.attacker_details.has(user_name):
 		chat(user_name + " has not been hit by any traps!")
 		return
@@ -167,12 +167,16 @@ func _handle_trivial_command(user_name: String) -> void:
 	var yellow_total = yellow_attackers.values().reduce(func(a, b): return a + b, 0) if yellow_attackers else 0
 	var red_total = red_attackers.values().reduce(func(a, b): return a + b, 0) if red_attackers else 0
 	
+	# Calculate shield hits
+	var shield_hits_received = lurker_gang.shield_hits_on_user.get(user_name, {}).values().reduce(func(a, b): return a + b, 0) if lurker_gang.shield_hits_on_user.has(user_name) else 0
+	
 	var message = user_name + " hit by: Yellow=" + str(yellow_total)
 	if top_yellow_attacker and top_yellow_count > 0:
 		message += " (mostly by " + top_yellow_attacker + ": " + str(top_yellow_count) + ")"
 	message += " Red=" + str(red_total)
 	if top_red_attacker and top_red_count > 0:
 		message += " (mostly by " + top_red_attacker + ": " + str(top_red_count) + ")"
+	message += " | Shield Hit: " + str(shield_hits_received)
 	
 	chat(message)
 
@@ -206,11 +210,21 @@ func _handle_faaa_command(user_name: String) -> void:
 	var yellow_total = yellow_victims.values().reduce(func(a, b): return a + b, 0) if yellow_victims else 0
 	var red_total = red_victims.values().reduce(func(a, b): return a + b, 0) if red_victims else 0
 	
+	# Calculate shield breakers and shield hits
+	var shield_breakers = lurker_gang.shield_breaker_details.get(user_name, {}).values().reduce(func(a, b): return a + b, 0) if lurker_gang.shield_breaker_details.has(user_name) else 0
+	var shield_hits_total = 0
+	if lurker_gang.shield_hit_details.has(user_name):
+		for trap_type in lurker_gang.shield_hit_details[user_name].values():
+			shield_hits_total += trap_type.values().reduce(func(a, b): return a + b, 0)
+	
 	var message = user_name + " threw: Yellow=" + str(yellow_total)
 	if top_yellow_victim and top_yellow_count > 0:
 		message += " (mostly at " + top_yellow_victim + ": " + str(top_yellow_count) + ")"
 	message += " Red=" + str(red_total)
 	if top_red_victim and top_red_count > 0:
 		message += " (mostly at " + top_red_victim + ": " + str(top_red_count) + ")"
+	message += " | Shield Breaker: " + str(shield_breakers) + " Shield Hits: " + str(shield_hits_total)
+	
+	chat(message)
 	
 	chat(message)
