@@ -363,6 +363,7 @@ missle_textures = Array[Texture2D]([ExtResource("21_1u8w0"), ExtResource("23_xuq
 
 [node name="twitch_events" type="Node" parent="managers"]
 script = ExtResource("16_m577l")
+text_commands_enabled = true
 command_prefixes = Array[String]([])
 scopes = Array[String](["chat:edit", "chat:read", "channel:read:redemptions", "channel:read:subscriptions"])
 disk_cache = true
@@ -402,7 +403,7 @@ horizontal_alignment = 2
 [node name="client_id_edit" type="LineEdit" parent="ui_root/form_root/login_root"]
 custom_minimum_size = Vector2(250, 0)
 layout_mode = 2
-text = "gelahgldamvqbeqw3wv6lmd7lagzvp"
+text = "55mg40gwjrrzhdyld621z4synvoerk"
 placeholder_text = "bot client id"
 expand_to_text_length = true
 clear_button_enabled = true

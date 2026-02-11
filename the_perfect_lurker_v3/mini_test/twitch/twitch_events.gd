@@ -23,6 +23,7 @@ var score_board: String
 
 func _ready() -> void:
 	event_stream.send_chat.connect(chat)
+	event_stream.system_message.connect(chat)
 	chat_message.connect(on_chat)
 	event.connect(on_event)
 
@@ -51,51 +52,58 @@ func try_login(
 	)
 	
 func on_chat(sender_data: SenderData, msg: String) -> void:
+	var user_key = sender_data.user.to_lower()
 	if !text_commands_enabled:
-		event_stream.lurker_chat.emit(sender_data.user)
+		event_stream.lurker_chat.emit(user_key)
 		return
+
+	if msg.begins_with("!"):
+		print("[COMMAND] ", sender_data.user, ": ", msg)
 		
 	match msg:
 		"!join":
 			var user_data = await user_data_by_name(sender_data.user)
-			event_stream.join_race_attempted.emit(sender_data.user, user_data.profile_image_url)
+			event_stream.join_race_attempted.emit(user_key, user_data.profile_image_url)
 		"!trap":
-			event_stream.trap_drop_attempted.emit(sender_data.user)
+			event_stream.trap_drop_attempted.emit(user_key)
 		"!missle":
-			event_stream.missle_launch_attempted.emit(sender_data.user)
+			event_stream.missle_launch_attempted.emit(user_key)
 		"!leave":
-			event_stream.leave_race_attempted.emit(sender_data.user)
+			event_stream.leave_race_attempted.emit(user_key)
 		"!kick":
-			if sender_data.user == "codingwithstrangers":
+			if sender_data.user.to_lower() == "codingwithstrangers":
 				var parts = msg.split(" ")
 				if parts.size() > 1:
 					var target_user = parts[1].strip_edges().to_lower()
 					if target_user != "codingwithstrangers":
 						event_stream.kick_user.emit(target_user)
-			event_stream.lurker_chat.emit(sender_data.user)
+			event_stream.lurker_chat.emit(user_key)
 		"!unban":
-			if sender_data.user == "codingwithstrangers":
+			if sender_data.user.to_lower() == "codingwithstrangers":
 				var parts = msg.split(" ")
 				if parts.size() > 1:
 					var target_user = parts[1].strip_edges().to_lower()
 					event_stream.unban_user.emit(target_user)
-			event_stream.lurker_chat.emit(sender_data.user)
+			event_stream.lurker_chat.emit(user_key)
 		"!place":
-			_handle_place_command(sender_data.user)
+			_handle_place_command(user_key)
 		"!defense":
-			_handle_defense_command(sender_data.user)
+			_handle_defense_command(user_key)
 		"!rivial":
-			_handle_faaa_command(sender_data.user)
+			_handle_faaa_command(user_key)
 		"!snapshot":
-			if sender_data.user == "codingwithstrangers":
+			if sender_data.user.to_lower() == "codingwithstrangers":
 				lurker_gang.create_snapshot()
 			else:
 				chat("Only the broadcaster can use !snapshot")
 		"!result":
-			if sender_data.user == "codingwithstrangers":
+			if sender_data.user.to_lower() == "codingwithstrangers":
 				lurker_gang.create_result()
 			else:
 				chat("Only the broadcaster can use !result")
+		_:
+			# Any non-command chat message - emit lurker_chat to reset idle timer
+			event_stream.lurker_chat.emit(user_key)
 		
 		
 
@@ -107,27 +115,38 @@ func on_event(type: String, data: Dictionary) -> void:
 			match data["reward"]["id"]:
 				join_reward:
 					var user_data = await user_data_by_name(data["user_name"])
-					event_stream.join_race_attempted.emit(data["user_name"], user_data.profile_image_url)
+					event_stream.join_race_attempted.emit(data["user_login"], user_data.profile_image_url)
 				trap_reward:
-					event_stream.trap_drop_attempted.emit(data["user_name"])
+					event_stream.trap_drop_attempted.emit(data["user_login"])
 				missile_reward:
-					event_stream.missle_launch_attempted.emit(data["user_name"])
+					event_stream.missle_launch_attempted.emit(data["user_login"])
 				leave_pit_reward:
-					event_stream.leave_the_pit.emit(data["user_name"])
+					event_stream.leave_the_pit.emit(data["user_login"])
+				shield_channel_point:
+					event_stream.grant_shield.emit(data["user_login"])
 func _handle_place_command(user_name: String) -> void:
 	if not lurker_gang.lurkers.has(user_name):
 		chat(user_name + " is not in the race!")
 		return
 	
-	var current_place = lurker_gang.rankings.find(user_name) + 1
+	if lurker_gang.rankings.is_empty():
+		chat("Rankings are empty - no one has data yet!")
+		return
+	
+	var rank_index = lurker_gang.rankings.find(user_name)
+	if rank_index == -1:
+		chat(user_name + " not found in rankings!")
+		return
+	
+	var current_place = rank_index + 1
 	var chasing = ""
 	var chased_by = ""
 	
-	if current_place > 1 and current_place <= lurker_gang.rankings.size():
-		chasing = lurker_gang.rankings[current_place - 2]
+	if current_place > 1 and rank_index > 0:
+		chasing = lurker_gang.rankings[rank_index - 1]
 	
 	if current_place < lurker_gang.rankings.size():
-		chased_by = lurker_gang.rankings[current_place]
+		chased_by = lurker_gang.rankings[rank_index + 1]
 	
 	var message = user_name + " is in place #" + str(current_place)
 	if chasing:
@@ -135,6 +154,7 @@ func _handle_place_command(user_name: String) -> void:
 	if chased_by:
 		message += " - Chased by: " + chased_by
 	
+	print("!place command output: ", message)
 	chat(message)
 
 func _handle_defense_command(user_name: String) -> void:

@@ -206,7 +206,7 @@ func _kick(target_username: String) -> void:
 		state = RaceState.Out
 	
 func _area_entered(hit_area: Area2D) -> void:
-	if hit_area.get_meta("pit_enter", false) and self.idle_timer > idle_time_before_pitting * 60:
+	if hit_area.get_meta("pit_enter", false) and self.idle_timer > idle_time_before_pitting * 60 and state != RaceState.InThePit and state != RaceState.LeavingThePit:
 		print(username, " should enter the pits")
 		event_stream.send_to_pit.emit(username)
 	elif hit_area.get_meta("pit_exit", false) and state == RaceState.LeavingThePit:

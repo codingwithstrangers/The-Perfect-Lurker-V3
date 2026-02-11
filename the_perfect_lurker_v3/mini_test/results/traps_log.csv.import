@@ -1,0 +1,17 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://dbwl3b2ob4074"
+
+[deps]
+
+files=["res://results/traps_log.trap.translation", "res://results/traps_log.hit.translation", "res://results/traps_log.dropped.translation", "res://results/traps_log.shield.translation", "res://results/traps_log.shield.translation"]
+
+source_file="res://results/traps_log.csv"
+dest_files=["res://results/traps_log.trap.translation", "res://results/traps_log.hit.translation", "res://results/traps_log.dropped.translation", "res://results/traps_log.shield.translation", "res://results/traps_log.shield.translation"]
+
+[params]
+
+compress=true
+delimiter=0

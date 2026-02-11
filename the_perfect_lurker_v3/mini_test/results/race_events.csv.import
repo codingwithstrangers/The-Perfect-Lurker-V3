@@ -1,0 +1,17 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://cev0meonkg2k2"
+
+[deps]
+
+files=["res://results/race_events.event.translation", "res://results/race_events.username.translation"]
+
+source_file="res://results/race_events.csv"
+dest_files=["res://results/race_events.event.translation", "res://results/race_events.username.translation"]
+
+[params]
+
+compress=true
+delimiter=0

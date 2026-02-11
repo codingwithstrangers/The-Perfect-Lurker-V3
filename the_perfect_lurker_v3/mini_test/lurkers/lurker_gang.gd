@@ -9,10 +9,10 @@ var lurkers: Dictionary[String, Lurker] = {}
 var crown_textures: Dictionary[int, Texture2D] = {}
 var rankings: Array[String] = []
 var kicked_users: Dictionary = {}  # Dictionary used as a set (keys are usernames, values are true)
-var kicked_users_csv_path: String = "user://kicked_users.csv"
-var traps_csv_path: String = "user://traps_log.csv"
-var race_events_csv_path: String = "user://race_events.csv"
-var results_csv_path: String = "user://results.csv"
+var kicked_users_csv_path: String = "res://results/kicked_users.csv"
+var traps_csv_path: String = "res://results/traps_log.csv"
+var race_events_csv_path: String = "res://results/race_events.csv"
+var results_csv_path: String = "res://results/results.csv"
 var last_result_timestamp: int = 0  # Track when !result was last run
 
 # Stats tracking dictionaries
@@ -55,12 +55,16 @@ func _on_join_race_attempted(user_name: String, profile_url: String):
 		event_stream.system_message.emit(message)
 		return
 	if lurkers.has(user_name):
-		# User is rejoining - always send them to the main track to race
 		var lurker = lurkers[user_name]
-		lurker.rejoin_race()
-		# Always reparent to track (not pit) when rejoining
-		track_manager.send_to_track(user_name)
-		_log_race_event("rejoin", user_name)
+		# Prevent rejoining via !join if already in race or in pit
+		if lurker.state == Lurker.RaceState.InThePit or lurker.state == Lurker.RaceState.Pitting:
+			var message = user_name + " is already in the pit. Use the pit token to return to the track."
+			print(message)
+			event_stream.system_message.emit(message)
+			return
+		var message = user_name + " is already in the race."
+		print(message)
+		event_stream.system_message.emit(message)
 		return
 
 	# New user joining
@@ -542,9 +546,9 @@ func create_result() -> void:
 	var timestamp = Time.get_ticks_msec()
 	
 	# Create the 3 result text files
-	var result_1_file = FileAccess.open("user://result_1.txt", FileAccess.WRITE)
-	var result_2_file = FileAccess.open("user://result_2.txt", FileAccess.WRITE)
-	var result_3_file = FileAccess.open("user://result_3.txt", FileAccess.WRITE)
+	var result_1_file = FileAccess.open("res://results/result_1.txt", FileAccess.WRITE)
+	var result_2_file = FileAccess.open("res://results/result_2.txt", FileAccess.WRITE)
+	var result_3_file = FileAccess.open("res://results/result_3.txt", FileAccess.WRITE)
 	
 	if result_1_file == null or result_2_file == null or result_3_file == null:
 		push_error("Failed to create result txt files")

@@ -24,6 +24,13 @@ func _ready() -> void:
 	missle_reward_edit.text = settings.missle_reward
 	leave_pit_reward_edit.text = settings.pit_reward
 	shield_reward_edit.text = settings.shield_reward
+	
+	# Load saved reward IDs into twitch_events
+	twitch_events.join_reward = settings.join_reward
+	twitch_events.trap_reward = settings.trap_reward
+	twitch_events.missile_reward = settings.missle_reward
+	twitch_events.leave_pit_reward = settings.pit_reward
+	twitch_events.shield_channel_point = settings.shield_reward
 
 func _on_login_attempt():
 	settings.client_id = client_id_edit.text

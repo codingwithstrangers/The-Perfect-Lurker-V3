@@ -1,0 +1,4 @@
+timestamp,username,place,miles,laps,races_joined,rejoin_count,leave_count,ban_count,1st_place_count,2nd_place_count,3rd_place_count,yellow_victims,red_victims,yellow_attackers,red_attackers
+618703,codingwithstrangers,1,57.57,26,1,0,0,0,1,0,0,"","","",""
+618703,robodom_,2,53.72,24,1,0,0,0,0,1,0,"","thestrangest_bot(1)","",""
+618703,thestrangest_bot,3,47.15,21,1,0,0,0,0,0,1,"","","","robodom_(1)"

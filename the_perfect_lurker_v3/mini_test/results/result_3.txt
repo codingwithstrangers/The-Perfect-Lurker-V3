@@ -1,0 +1,17 @@
+=== 3RD PLACE ===
+Player: thestrangest_bot
+Miles: 47.15
+Laps: 21
+Races Joined: 1
+Rejoin Count: 0
+Leave Count: 0
+Ban Count: 0
+1st Place Finishes: 0
+2nd Place Finishes: 0
+3rd Place Finishes: 1
+Yellow Traps Hit: 0
+Red Traps Hit: 1
+Yellow Traps Thrown: 0
+Red Traps Thrown: 0
+
+
