@@ -1,11 +1,16 @@
 extends Node
 class_name LurkerGang
 
+const BROADCASTER_USERNAME = "codingwithstrangers"
+
 @export var lurker_prefab: PackedScene
+@export var broadcaster_icon_path: String = "res://icons/stranger_kart.gif"
+@export var broadcaster_icon_size: Vector2 = Vector2(300, 300)
 @onready var event_stream: EventStream = $'../event_stream'
 @onready var track_manager: TrackManager = $"../track_manager"
 
 var lurkers: Dictionary[String, Lurker] = {}
+var broadcaster_icon: Texture2D = null
 var crown_textures: Dictionary[int, Texture2D] = {}
 var rankings: Array[String] = []
 var kicked_users: Dictionary = {}  # Dictionary used as a set (keys are usernames, values are true)
@@ -39,6 +44,7 @@ func _ready():
 	event_stream.grant_shield.connect(self._on_grant_shield)
 
 	_load_crown_textures()
+	_load_broadcaster_icon()
 	_load_kicked_users()
 	_load_placement_counts()
 	_initialize_traps_csv()
@@ -133,11 +139,17 @@ func spawn_lurker(user_name: String, url: String, image: Image):
 	var lurker = new_lurker.get_node(".") as Lurker
 	lurkers[user_name] = lurker
 	
-	var downloaded_image = ImageTexture.create_from_image(image)
+	# Use broadcaster icon if username matches, otherwise use profile image
+	var final_texture: Texture2D
+	if user_name.to_lower() == BROADCASTER_USERNAME and broadcaster_icon != null:
+		final_texture = broadcaster_icon
+	else:
+		final_texture = ImageTexture.create_from_image(image)
+	
 	lurker.username = user_name
 	lurker.profile_url = url
-	lurker.profile_image = downloaded_image
-	lurker.car_sprite.texture = downloaded_image
+	lurker.profile_image = final_texture
+	lurker.car_sprite.texture = final_texture
 	lurker.name = user_name
 	event_stream.joined_race.emit(lurker)
 
@@ -192,6 +204,20 @@ func _load_crown_textures() -> void:
 	crown_textures[1] = load("res://crowns/silver.png")
 	crown_textures[2] = load("res://crowns/bronze.png")
 
+func _load_broadcaster_icon() -> void:
+	if FileAccess.file_exists(broadcaster_icon_path):
+		var image = Image.new()
+		var err = image.load(broadcaster_icon_path)
+		if err == OK:
+			# Resize to broadcaster_icon_size
+			image.resize(int(broadcaster_icon_size.x), int(broadcaster_icon_size.y))
+			broadcaster_icon = ImageTexture.create_from_image(image)
+			print("Loaded broadcaster icon: ", broadcaster_icon_path)
+		else:
+			push_error("Failed to load broadcaster icon: ", err)
+	else:
+		push_error("Broadcaster icon not found: ", broadcaster_icon_path)
+
 func _on_lurker_lap_completed(user_name: String, lap_count: int) -> void:
 	print(user_name, " completed lap ", lap_count + 1)
 	_update_rankings()
@@ -207,7 +233,8 @@ func _update_rankings() -> void:
 	var racing_lurkers: Array[String] = []
 	for user_name in lurkers.keys():
 		var lurker = lurkers[user_name]
-		if lurker.state != Lurker.RaceState.Out:
+		# Exclude broadcaster from rankings
+		if lurker.state != Lurker.RaceState.Out and user_name.to_lower() != BROADCASTER_USERNAME:
 			racing_lurkers.append(user_name)
 
 	# sort descending by total_distance using a simple stable selection sort
@@ -560,6 +587,10 @@ func create_result() -> void:
 	result_3_file.store_line("=== 3RD PLACE ===")
 	
 	for user_name in lurkers.keys():
+		# Skip broadcaster from results
+		if user_name.to_lower() == BROADCASTER_USERNAME:
+			continue
+		
 		var snapshot = _get_lurker_snapshot(user_name)
 		var place = snapshot["place"]
 		
