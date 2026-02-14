@@ -37,10 +37,10 @@ func _on_trap_drop_attempted(username: String):
 	var texture_path = self.trap_textures[trap_index].resource_path
 	if "red" in texture_path.to_lower():
 		trap.trap_type = "red_shell"
+		trap.rotate(randf_range(0, PI*2))
 	else:
 		trap.trap_type = "yellow_attack"
-	
-	trap.rotate(randf_range(0, PI*2))
+		trap.rotation = 0.0
 	trap.position = lurker.position
 	trap.dropped_by = username
 	trap.dropped_on_lap = lurker.lap_count  # Store dropper's current lap

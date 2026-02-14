@@ -1,4 +1,4 @@
-[gd_scene load_steps=40 format=3 uid="uid://brlanoyshjsn5"]
+[gd_scene load_steps=41 format=3 uid="uid://brlanoyshjsn5"]
 
 [ext_resource type="Texture2D" uid="uid://b3q0lw3anqx4q" path="res://scenary/track_one.png" id="1_0odxb"]
 [ext_resource type="Texture2D" uid="uid://pxfuc1ur8jl" path="res://scenary/track_three/smb-anniversary-super-mario-64-power-star2.png" id="4_xuqvo"]
@@ -28,6 +28,7 @@
 [ext_resource type="Texture2D" uid="uid://ch0nihi03fall" path="res://missile/paper_plane/updown plane.png" id="23_xuqvo"]
 [ext_resource type="Texture2D" uid="uid://cccuw7mfd6y0n" path="res://missile/kunai/kunai.png" id="24_qsp4k"]
 [ext_resource type="Texture2D" uid="uid://duqu4ikb1ro1g" path="res://missile/kunai/batarang.png" id="25_kq58d"]
+[ext_resource type="Texture2D" uid="uid://chirxfji7s38u" path="res://missile/rasengan/rasensuriken.png" id="26_j7n2w"]
 
 [sub_resource type="Curve2D" id="Curve2D_cegan"]
 _data = {
@@ -359,7 +360,7 @@ trap_prefab = ExtResource("13_l7mv5")
 [node name="missle_launcher" type="Node" parent="managers"]
 script = ExtResource("14_8sav2")
 missle_prefab = ExtResource("21_0odxb")
-missle_textures = Array[Texture2D]([ExtResource("21_1u8w0"), ExtResource("23_xuqvo"), ExtResource("24_qsp4k"), ExtResource("25_kq58d")])
+missle_textures = Array[Texture2D]([ExtResource("21_1u8w0"), ExtResource("23_xuqvo"), ExtResource("24_qsp4k"), ExtResource("25_kq58d"), ExtResource("26_j7n2w")])
 
 [node name="twitch_events" type="Node" parent="managers"]
 script = ExtResource("16_m577l")

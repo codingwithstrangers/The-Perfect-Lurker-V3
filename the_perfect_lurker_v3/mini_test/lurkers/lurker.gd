@@ -47,6 +47,14 @@ var state: RaceState = RaceState.Out:
 func _ready() -> void:
 	area.area_entered.connect(_area_entered)
 	state = RaceState.Racing
+	_set_hitbox_enabled(true)
+
+func _set_hitbox_enabled(enabled: bool) -> void:
+	area.monitoring = enabled
+	area.monitorable = enabled
+	for child in area.get_children():
+		if child is CollisionShape2D:
+			child.disabled = not enabled
 
 func _process(delta: float) -> void:
 	if state == RaceState.Out || state == RaceState.InThePit || state == RaceState.Stunned:
@@ -171,6 +179,7 @@ func join_race():
 	print(username, " has joined the race")
 	car_sprite.visible = true
 	car_sprite.modulate = Color(1.0, 1.0, 1.0, 1.0)
+	_set_hitbox_enabled(true)
 	idle_timer = 0
 	lap_count = 0
 	progress = 0
@@ -185,6 +194,7 @@ func rejoin_race():
 	print(username, " has rejoined the race (restoring to track)")
 	car_sprite.visible = true
 	car_sprite.modulate = Color(1.0, 1.0, 1.0, 1.0)
+	_set_hitbox_enabled(true)
 	idle_timer = 0
 	speed = 0.0
 	target_speed = 0.0
@@ -206,10 +216,7 @@ func _kick(target_username: String) -> void:
 		state = RaceState.Out
 	
 func _area_entered(hit_area: Area2D) -> void:
-	if hit_area.get_meta("pit_enter", false) and self.idle_timer > idle_time_before_pitting * 60 and state != RaceState.InThePit and state != RaceState.LeavingThePit:
-		print(username, " should enter the pits")
-		event_stream.send_to_pit.emit(username)
-	elif hit_area.get_meta("pit_exit", false) and state == RaceState.LeavingThePit:
+	if hit_area.get_meta("pit_exit", false) and state == RaceState.LeavingThePit:
 		print(username, " should exit the pits")
 		event_stream.send_to_track.emit(username)
 		state = RaceState.Racing
@@ -220,6 +227,7 @@ func leave_pit():
 	print(username, " is leaving the pit")
 	# Restore sprite color
 	car_sprite.modulate = Color(1.0, 1.0, 1.0, 1.0)
+	_set_hitbox_enabled(true)
 	state = RaceState.LeavingThePit
 	idle_timer = 0
 	progress = 0
@@ -232,6 +240,7 @@ func enter_pit():
 	clear_shield()
 	# Grey out sprite in pit lane (full opacity)
 	car_sprite.modulate = Color(0.5, 0.5, 0.5, 1.0)
+	_set_hitbox_enabled(false)
 	state = RaceState.InThePit
 
 func set_crown(crown_texture: Texture2D) -> void:

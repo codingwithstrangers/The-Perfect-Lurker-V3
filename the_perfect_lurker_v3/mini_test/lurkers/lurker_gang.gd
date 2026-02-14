@@ -4,8 +4,8 @@ class_name LurkerGang
 const BROADCASTER_USERNAME = "codingwithstrangers"
 
 @export var lurker_prefab: PackedScene
-@export var broadcaster_icon_path: String = "res://icons/stranger_kart.gif"
-@export var broadcaster_icon_size: Vector2 = Vector2(300, 300)
+@export var broadcaster_icon_path: String = "res://icons/png gokart.png"
+@export var broadcaster_icon_size: Vector2 = Vector2(400, 400)
 @onready var event_stream: EventStream = $'../event_stream'
 @onready var track_manager: TrackManager = $"../track_manager"
 
@@ -167,6 +167,9 @@ func _on_kick_user(user_name: String):
 		lurkers[user_name]._kick(user_name)
 		lurkers[user_name].queue_free()
 		lurkers.erase(user_name)
+		var message = user_name + " was kicked from the race."
+		print(message)
+		event_stream.system_message.emit(message)
 
 func _on_unban_user(user_name: String):
 	if kicked_users.has(user_name):
@@ -188,8 +191,12 @@ func _on_grant_shield(user_name: String) -> void:
 
 func _on_leave_race_attempted(user_name: String):
 	if lurkers.has(user_name):
-		lurkers[user_name].leave_race()
+		lurkers[user_name].queue_free()
+		lurkers.erase(user_name)
 		_log_race_event("leave", user_name)
+		var message = user_name + " left the race."
+		print(message)
+		event_stream.system_message.emit(message)
 
 func _on_lurker_send_to_pit(user_name: String):
 	if lurkers.has(user_name):
