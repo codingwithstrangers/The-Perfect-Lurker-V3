@@ -86,6 +86,10 @@ func try_login(
 	await _connect_and_subscribe()
 
 func _connect_and_subscribe() -> void:
+	_load_login_from_settings_if_needed()
+	if login_client_id == "" or login_client_secret == "" or login_channel == "":
+		_update_status_label("Missing Login Settings")
+		return
 	_update_status_label("Connecting...")
 	await(authenticate(login_client_id, login_client_secret))
 	var success = await(connect_to_irc())
@@ -117,6 +121,7 @@ func _subscribe_core_events() -> void:
 	)
 
 func _schedule_reconnect(reason: String) -> void:
+	_load_login_from_settings_if_needed()
 	if login_client_id == "" or login_client_secret == "" or login_channel == "":
 		return
 	if reconnect_in_progress:
@@ -135,6 +140,7 @@ func _on_reconnect_timer_timeout() -> void:
 		reconnect_timer.start()
 
 func _healthcheck_connection() -> void:
+	_load_login_from_settings_if_needed()
 	if login_client_id == "" or login_channel == "":
 		return
 	if reconnect_in_progress:
@@ -179,6 +185,25 @@ func _on_events_connected() -> void:
 		_update_status_label("Connected")
 	else:
 		_update_status_label("Connecting...")
+
+func _load_login_from_settings_if_needed() -> void:
+	if login_client_id != "" and login_client_secret != "" and login_channel != "":
+		return
+	var settings_path := "user://settings.dat"
+	if not FileAccess.file_exists(settings_path):
+		return
+	var f := FileAccess.open(settings_path, FileAccess.READ)
+	if f == null:
+		return
+	var parsed = JSON.parse_string(f.get_as_text())
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return
+	if login_client_id == "":
+		login_client_id = str(parsed.get("client_id", "")).strip_edges()
+	if login_client_secret == "":
+		login_client_secret = str(parsed.get("client_secret", "")).strip_edges()
+	if login_channel == "":
+		login_channel = str(parsed.get("channel", "")).strip_edges().to_lower()
 
 func _setup_status_label() -> void:
 	status_layer = CanvasLayer.new()

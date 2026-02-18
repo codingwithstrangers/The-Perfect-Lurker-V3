@@ -28,7 +28,7 @@
 [ext_resource type="Texture2D" uid="uid://ch0nihi03fall" path="res://missile/paper_plane/updown plane.png" id="23_xuqvo"]
 [ext_resource type="Texture2D" uid="uid://cccuw7mfd6y0n" path="res://missile/kunai/kunai.png" id="24_qsp4k"]
 [ext_resource type="Texture2D" uid="uid://duqu4ikb1ro1g" path="res://missile/kunai/batarang.png" id="25_kq58d"]
-[ext_resource type="Texture2D" uid="uid://chirxfji7s38u" path="res://missile/rasengan/rasensuriken.png" id="26_j7n2w"]
+[ext_resource type="Texture2D" uid="uid://bvivtgtpo2lla" path="res://missile/rasengan/rasensuriken.png" id="26_j7n2w"]
 
 [sub_resource type="Curve2D" id="Curve2D_cegan"]
 _data = {

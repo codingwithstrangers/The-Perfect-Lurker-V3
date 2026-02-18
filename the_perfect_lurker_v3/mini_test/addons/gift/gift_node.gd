@@ -147,9 +147,12 @@ func authenticate(client_id, client_secret) -> void:
 	self.client_id = client_id
 	self.client_secret = client_secret
 	print("Checking token...")
-	if (FileAccess.file_exists("res://addons/gift/auth/user_token.txt")):
-		var file : FileAccess = FileAccess.open_encrypted_with_pass("res://addons/gift/auth/user_token.txt", FileAccess.READ, client_secret)
-		token = JSON.parse_string(file.get_as_text())
+	token = {}
+	if (FileAccess.file_exists("user://gift/auth/user_token")):
+		var file : FileAccess = FileAccess.open_encrypted_with_pass("user://gift/auth/user_token", FileAccess.READ, client_secret)
+		var parsed = JSON.parse_string(file.get_as_text())
+		if typeof(parsed) == TYPE_DICTIONARY:
+			token = parsed
 		if (token.has("scope") && scopes.size() != 0):
 			if (scopes.size() != token["scope"].size()):
 				get_token()
@@ -159,9 +162,13 @@ func authenticate(client_id, client_secret) -> void:
 					if (!token["scope"].has(scope)):
 						get_token()
 						token = await(user_token_received)
-	else:
+	if token.is_empty():
 		get_token()
 		token = await(user_token_received)
+	if token.is_empty() or not token.has("access_token"):
+		print("Token fetch failed.")
+		user_token_invalid.emit()
+		return
 	username = await(is_token_valid(token["access_token"]))
 	while (username == ""):
 		print("Token invalid.")
@@ -171,6 +178,10 @@ func authenticate(client_id, client_secret) -> void:
 		else:
 			get_token()
 		token = await(user_token_received)
+		if token.is_empty() or not token.has("access_token"):
+			print("Token fetch failed.")
+			user_token_invalid.emit()
+			return
 		username = await(is_token_valid(token["access_token"]))
 	print("Token verified.")
 	user_token_valid.emit()
@@ -188,9 +199,12 @@ func refresh_access_token(refresh : String) -> void:
 		print("Refresh failed, requesting new token.")
 		get_token()
 	else:
+		var old_refresh : String = token.get("refresh_token", "")
 		token = response
+		if old_refresh != "" and not token.has("refresh_token"):
+			token["refresh_token"] = old_refresh
 		var file : FileAccess = FileAccess.open_encrypted_with_pass("user://gift/auth/user_token", FileAccess.WRITE, client_secret)
-		file.store_string(reply[3].get_string_from_utf8())
+		file.store_string(JSON.stringify(token))
 		user_token_received.emit(response)
 
 # Gets a new auth token from Twitch.
@@ -204,29 +218,46 @@ func get_token() -> void:
 		scope += scopes[scopes.size() - 1]
 	scope = scope.uri_encode()
 	OS.shell_open("https://id.twitch.tv/oauth2/authorize?response_type=code&client_id=" + client_id +"&redirect_uri=http://localhost:18297&scope=" + scope)
-	server.listen(18297)
+	if server.is_listening():
+		server.stop()
+	var listen_err := server.listen(18297)
+	if listen_err != OK:
+		print("Could not start local OAuth callback server on port 18297: ", listen_err)
+		user_token_received.emit({})
+		return
 	print("Waiting for user to login.")
+	peer = null
+	var started_wait := Time.get_ticks_msec()
 	while(!peer):
 		peer = server.take_connection()
-		OS.delay_msec(100)
+		if Time.get_ticks_msec() - started_wait > 180000:
+			print("Timed out waiting for OAuth redirect.")
+			server.stop()
+			user_token_received.emit({})
+			return
+		await(get_tree().create_timer(0.1).timeout)
 	while(peer.get_status() == peer.STATUS_CONNECTED):
 		peer.poll()
 		if (peer.get_available_bytes() > 0):
 			var response = peer.get_utf8_string(peer.get_available_bytes())
 			if (response == ""):
 				print("Empty response. Check if your redirect URL is set to http://localhost:18297.")
+				server.stop()
+				user_token_received.emit({})
 				return
 			var start : int = response.find("?")
 			response = response.substr(start + 1, response.find(" ", start) - start)
 			var data : Dictionary = {}
 			for entry in response.split("&"):
 				var pair = entry.split("=")
-				data[pair[0]] = pair[1] if pair.size() > 0 else ""
+				data[pair[0]] = pair[1] if pair.size() > 1 else ""
 			if (data.has("error")):
 				var msg = "Error %s: %s" % [data["error"], data["error_description"]]
 				print(msg)
 				send_response(peer, "400 BAD REQUEST",  msg.to_utf8_buffer())
 				peer.disconnect_from_host()
+				server.stop()
+				user_token_received.emit({})
 				break
 			else:
 				print("Success.")
@@ -242,9 +273,10 @@ func get_token() -> void:
 				var token_data = answer[3].get_string_from_utf8()
 				file.store_string(token_data)
 				request.queue_free()
+				server.stop()
 				user_token_received.emit(JSON.parse_string(token_data))
 				break
-		OS.delay_msec(100)
+		await(get_tree().create_timer(0.1).timeout)
 
 func send_response(peer : StreamPeer, response : String, body : PackedByteArray) -> void:
 	peer.put_data(("HTTP/1.1 %s\r\n" % response).to_utf8_buffer())
