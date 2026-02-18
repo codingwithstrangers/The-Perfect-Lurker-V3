@@ -314,7 +314,8 @@ func on_chat(sender_data: SenderData, msg: String) -> void:
 	match command:
 		"!join":
 			var user_data = await user_data_by_name(sender_data.user)
-			event_stream.join_race_attempted.emit(user_key, user_data.profile_image_url)
+			var profile_image_url = str(user_data.get("profile_image_url", ""))
+			event_stream.join_race_attempted.emit(user_key, profile_image_url)
 		"!trap":
 			event_stream.trap_drop_attempted.emit(user_key)
 		"!missile", "!missle":
@@ -367,7 +368,8 @@ func on_event(type: String, data: Dictionary) -> void:
 			match data["reward"]["id"]:
 				join_reward:
 					var user_data = await user_data_by_name(data["user_name"])
-					event_stream.join_race_attempted.emit(user_login, user_data.profile_image_url)
+					var profile_image_url = str(user_data.get("profile_image_url", ""))
+					event_stream.join_race_attempted.emit(user_login, profile_image_url)
 				trap_reward:
 					event_stream.trap_drop_attempted.emit(user_login)
 				missile_reward:
@@ -451,7 +453,15 @@ func _handle_defense_command(user_name: String) -> void:
 	var red_total = red_attackers.values().reduce(func(a, b): return a + b, 0) if red_attackers else 0
 	
 	# Calculate shield hits
-	var shield_hits_received = lurker_gang.shield_hits_on_user.get(user_name, {}).values().reduce(func(a, b): return a + b, 0) if lurker_gang.shield_hits_on_user.has(user_name) else 0
+	var shield_attackers = lurker_gang.shield_hits_on_user.get(user_name, {}) if lurker_gang.shield_hits_on_user.has(user_name) else {}
+	var shield_hits_received = shield_attackers.values().reduce(func(a, b): return a + b, 0) if shield_attackers else 0
+	var top_shield_attacker = ""
+	var top_shield_count = 0
+	for attacker in shield_attackers.keys():
+		var count = shield_attackers[attacker]
+		if count > top_shield_count:
+			top_shield_attacker = attacker
+			top_shield_count = count
 	
 	var message = user_name + " hit by: Yellow=" + str(yellow_total)
 	if top_yellow_attacker and top_yellow_count > 0:
@@ -460,6 +470,8 @@ func _handle_defense_command(user_name: String) -> void:
 	if top_red_attacker and top_red_count > 0:
 		message += " (mostly by " + top_red_attacker + ": " + str(top_red_count) + ")"
 	message += " | Shield Hit: " + str(shield_hits_received)
+	if top_shield_attacker and top_shield_count > 0:
+		message += " (mostly by " + top_shield_attacker + ": " + str(top_shield_count) + ")"
 	
 	chat(message)
 

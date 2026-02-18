@@ -1,0 +1,17 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://u3xyo24qqcfn"
+
+[deps]
+
+files=["res://results/movement_log.datetime.translation", "res://results/movement_log.timestamp.translation", "res://results/movement_log.event.translation", "res://results/movement_log.username.translation", "res://results/movement_log.place.translation", "res://results/movement_log.miles.translation", "res://results/movement_log.laps.translation", "res://results/movement_log.state.translation"]
+
+source_file="res://results/movement_log.csv"
+dest_files=["res://results/movement_log.datetime.translation", "res://results/movement_log.timestamp.translation", "res://results/movement_log.event.translation", "res://results/movement_log.username.translation", "res://results/movement_log.place.translation", "res://results/movement_log.miles.translation", "res://results/movement_log.laps.translation", "res://results/movement_log.state.translation"]
+
+[params]
+
+compress=true
+delimiter=0

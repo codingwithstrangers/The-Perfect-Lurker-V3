@@ -14,7 +14,7 @@ acceleration_rate = 35.0
 deceleration_rate = 15.0
 target_rate = 25.0
 idle_time_before_pitting = 30.0
-units_per_mile = 10000.0
+units_per_mile = 100000.0
 
 [node name="lurker_sprite" type="Sprite2D" parent="."]
 scale = Vector2(0.25, 0.25)

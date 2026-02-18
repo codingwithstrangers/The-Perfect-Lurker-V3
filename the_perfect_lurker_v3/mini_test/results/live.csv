@@ -1,0 +1,4 @@
+run_id,datetime,timestamp,username,place,miles,laps,state
+1771449306,2026-02-18T16:45:01,5396355,theyagich,1,532.62,247,racing
+1771449306,2026-02-18T16:45:01,5396355,robodom_,2,529.57,246,racing
+1771449306,2026-02-18T16:45:01,5396355,theidentitybooth,3,526.51,244,racing

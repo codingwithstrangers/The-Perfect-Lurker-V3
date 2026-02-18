@@ -8,6 +8,7 @@
 radius = 30.0
 
 [node name="trap_follow" type="PathFollow2D"]
+rotates = false
 script = ExtResource("1_7rpq0")
 red_rotates = false
 

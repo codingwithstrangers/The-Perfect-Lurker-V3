@@ -101,8 +101,13 @@ var peer : StreamPeerTCP
 var connected : bool = false
 var user_regex : RegEx = RegEx.new()
 var twitch_restarting : bool = false
+var token_refresh_timer : Timer
+var refresh_in_progress : bool = false
 
 const USER_AGENT : String = "User-Agent: GIFT/4.1.5 (Godot Engine)"
+const TOKEN_MIN_REFRESH_DELAY_SEC : float = 60.0
+const TOKEN_REFRESH_EARLY_BUFFER_SEC : int = 300
+const TOKEN_REFRESH_RETRY_SEC : float = 30.0
 
 enum RequestType {
 	EMOTE,
@@ -185,7 +190,7 @@ func authenticate(client_id, client_secret) -> void:
 		username = await(is_token_valid(token["access_token"]))
 	print("Token verified.")
 	user_token_valid.emit()
-	refresh_token()
+	_schedule_token_refresh_from_current_token("authenticate")
 
 func refresh_access_token(refresh : String) -> void:
 	print("Refreshing access token.")
@@ -196,8 +201,8 @@ func refresh_access_token(refresh : String) -> void:
 	request.queue_free()
 	var response : Dictionary = JSON.parse_string(reply[3].get_string_from_utf8())
 	if (response.has("error")):
-		print("Refresh failed, requesting new token.")
-		get_token()
+		print("[TOKEN] Refresh failed: ", response.get("message", response.get("error", "unknown_error")))
+		user_token_received.emit({})
 	else:
 		var old_refresh : String = token.get("refresh_token", "")
 		token = response
@@ -205,6 +210,7 @@ func refresh_access_token(refresh : String) -> void:
 			token["refresh_token"] = old_refresh
 		var file : FileAccess = FileAccess.open_encrypted_with_pass("user://gift/auth/user_token", FileAccess.WRITE, client_secret)
 		file.store_string(JSON.stringify(token))
+		print("[TOKEN] Refresh success. New access token saved.")
 		user_token_received.emit(response)
 
 # Gets a new auth token from Twitch.
@@ -300,13 +306,74 @@ func is_token_valid(token : String) -> String:
 		return payload["login"]
 	return ""
 
-func refresh_token() -> void:
-	await(get_tree().create_timer(3600).timeout)
-	if (await(is_token_valid(token["access_token"])) == ""):
+func _ensure_token_refresh_timer() -> void:
+	if token_refresh_timer != null:
+		return
+	token_refresh_timer = Timer.new()
+	token_refresh_timer.one_shot = true
+	token_refresh_timer.timeout.connect(_on_token_refresh_timer_timeout)
+	add_child(token_refresh_timer)
+
+func _schedule_token_refresh_from_current_token(source: String) -> void:
+	_ensure_token_refresh_timer()
+	if token.is_empty() or not token.has("access_token"):
+		print("[TOKEN] No access token available to schedule refresh from (", source, ").")
+		return
+
+	var expires_in := int(token.get("expires_in", 0))
+	var refresh_delay := TOKEN_MIN_REFRESH_DELAY_SEC
+	if expires_in > 0:
+		refresh_delay = max(TOKEN_MIN_REFRESH_DELAY_SEC, float(expires_in - TOKEN_REFRESH_EARLY_BUFFER_SEC))
+
+	if token_refresh_timer.is_stopped() == false:
+		token_refresh_timer.stop()
+	token_refresh_timer.wait_time = refresh_delay
+	token_refresh_timer.start()
+	print("[TOKEN] Refresh scheduled in ", refresh_delay, "s from ", source, ".")
+
+func _attempt_token_refresh(reason: String) -> bool:
+	if refresh_in_progress:
+		print("[TOKEN] Refresh already in progress; skipping duplicate request (", reason, ").")
+		return false
+
+	var refresh : String = token.get("refresh_token", "")
+	if refresh == "":
+		print("[TOKEN] No refresh token available (", reason, ").")
+		return false
+
+	refresh_in_progress = true
+	var token_hint := refresh.left(6) + "..."
+	print("[TOKEN] Attempting refresh (", reason, ") using refresh token: ", token_hint)
+	refresh_access_token(refresh)
+	var refreshed = await(user_token_received)
+	refresh_in_progress = false
+
+	if typeof(refreshed) != TYPE_DICTIONARY or refreshed.is_empty() or not refreshed.has("access_token"):
+		print("[TOKEN] Refresh attempt failed (", reason, ").")
+		return false
+
+	token = refreshed
+	var validated_username = await(is_token_valid(token["access_token"]))
+	if validated_username == "":
+		print("[TOKEN] Refreshed token failed validation (", reason, ").")
+		return false
+
+	username = validated_username
+	print("[TOKEN] Refresh validated successfully for user: ", username)
+	user_token_valid.emit()
+	_schedule_token_refresh_from_current_token("refresh_success")
+	return true
+
+func _on_token_refresh_timer_timeout() -> void:
+	var refreshed_ok = await(_attempt_token_refresh("timer"))
+	if not refreshed_ok:
+		print("[TOKEN] Refresh failed on timer; retrying in ", TOKEN_REFRESH_RETRY_SEC, "s.")
+		_ensure_token_refresh_timer()
+		token_refresh_timer.wait_time = TOKEN_REFRESH_RETRY_SEC
+		token_refresh_timer.start()
 		user_token_invalid.emit()
 		return
-	else:
-		refresh_token()
+
 	var to_remove : Array[String] = []
 	for entry in eventsub_messages.keys():
 		if (Time.get_ticks_msec() - eventsub_messages[entry] > 600000):

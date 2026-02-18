@@ -1,7 +1,7 @@
 === 1ST PLACE ===
-Player: codingwithstrangers
-Miles: 57.57
-Laps: 26
+Player: theyagich
+Miles: 515.87
+Laps: 239
 Races Joined: 1
 Rejoin Count: 0
 Leave Count: 0
@@ -10,8 +10,8 @@ Ban Count: 0
 2nd Place Finishes: 0
 3rd Place Finishes: 0
 Yellow Traps Hit: 0
-Red Traps Hit: 0
-Yellow Traps Thrown: 0
+Red Traps Hit: 3
+Yellow Traps Thrown: 1
 Red Traps Thrown: 0
 
 

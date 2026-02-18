@@ -8,6 +8,7 @@ const BROADCASTER_USERNAME = "codingwithstrangers"
 @export var broadcaster_icon_size: Vector2 = Vector2(400, 400)
 @onready var event_stream: EventStream = $'../event_stream'
 @onready var track_manager: TrackManager = $"../track_manager"
+@onready var twitch_events: TwitchEvents = $'../twitch_events'
 
 var lurkers: Dictionary[String, Lurker] = {}
 var broadcaster_icon: Texture2D = null
@@ -18,7 +19,11 @@ var kicked_users_csv_path: String = "res://results/kicked_users.csv"
 var traps_csv_path: String = "res://results/traps_log.csv"
 var race_events_csv_path: String = "res://results/race_events.csv"
 var results_csv_path: String = "res://results/results.csv"
+var live_results_csv_path: String = "res://results/live.csv"
+var movement_log_csv_path: String = "res://results/movement_log.csv"
 var last_result_timestamp: int = 0  # Track when !result was last run
+var movement_timer: Timer
+var current_run_id: String = ""
 
 # Stats tracking dictionaries
 var trap_hits_on_user: Dictionary = {}  # {username: {trap_type: count}}
@@ -49,6 +54,16 @@ func _ready():
 	_load_placement_counts()
 	_initialize_traps_csv()
 	_initialize_race_events_csv()
+	_initialize_movement_log_csv()
+	current_run_id = str(int(Time.get_unix_time_from_system()))
+	_write_live_results_csv()
+
+	movement_timer = Timer.new()
+	movement_timer.one_shot = false
+	movement_timer.wait_time = 5.0
+	movement_timer.timeout.connect(_on_movement_timer_timeout)
+	add_child(movement_timer)
+	movement_timer.start()
 	
 	# Monitor app close
 	tree_exiting.connect(_on_tree_exiting)
@@ -87,6 +102,12 @@ func image_type(url: String) -> String:
 	return file_extentsion.to_lower()
 
 func load_profile_image(user_name: String, url: String):
+	if url.strip_edges() == "":
+		var fallback_image = Image.create(64, 64, false, Image.FORMAT_RGBA8)
+		fallback_image.fill(Color(1, 1, 1, 1))
+		self.spawn_lurker(user_name, "", fallback_image)
+		return
+
 	var http_request = HTTPRequest.new()
 	add_child(http_request)
 	http_request.request_completed.connect(self._on_image_downloaded.bind(http_request, url, user_name))
@@ -94,6 +115,9 @@ func load_profile_image(user_name: String, url: String):
 	var error = http_request.request(url)
 	if error != OK:
 		push_error("An error occurred in the HTTP request.")
+		var fallback_image = Image.create(64, 64, false, Image.FORMAT_RGBA8)
+		fallback_image.fill(Color(1, 1, 1, 1))
+		self.spawn_lurker(user_name, "", fallback_image)
 
 func _on_image_downloaded(
 	_result: int,
@@ -109,6 +133,9 @@ func _on_image_downloaded(
 	http_request.queue_free()
 	if response_code != 200:
 		push_error("invalid response code: ", response_code)
+		var fallback_image = Image.create(64, 64, false, Image.FORMAT_RGBA8)
+		fallback_image.fill(Color(1, 1, 1, 1))
+		self.spawn_lurker(user_name, "", fallback_image)
 		return
 
 	var image = Image.new()
@@ -126,6 +153,9 @@ func _on_image_downloaded(
 		
 	if err != OK:
 		push_error("failed to load image: ", err)
+		var fallback_image = Image.create(64, 64, false, Image.FORMAT_RGBA8)
+		fallback_image.fill(Color(1, 1, 1, 1))
+		self.spawn_lurker(user_name, "", fallback_image)
 		return
 
 	self.spawn_lurker(user_name, url, image)
@@ -141,7 +171,7 @@ func spawn_lurker(user_name: String, url: String, image: Image):
 	
 	# Use broadcaster icon if username matches, otherwise use profile image
 	var final_texture: Texture2D
-	if user_name.to_lower() == BROADCASTER_USERNAME and broadcaster_icon != null:
+	if user_name.to_lower() == _get_broadcaster_login() and broadcaster_icon != null:
 		final_texture = broadcaster_icon
 	else:
 		final_texture = ImageTexture.create_from_image(image)
@@ -155,6 +185,14 @@ func spawn_lurker(user_name: String, url: String, image: Image):
 
 	lurker.lap_completed.connect(self._on_lurker_lap_completed)
 	lurker.distance_updated.connect(self._on_lurker_distance_updated)
+	_log_movement_snapshot("join", user_name)
+	_write_live_results_csv()
+
+func _get_broadcaster_login() -> String:
+	if twitch_events != null and twitch_events.login_channel != "":
+		return twitch_events.login_channel.to_lower()
+	return BROADCASTER_USERNAME.to_lower()
+
 func _on_lurker_chat(user_name: String):
 	if lurkers.has(user_name):
 		lurkers[user_name].chat()
@@ -167,6 +205,8 @@ func _on_kick_user(user_name: String):
 		lurkers[user_name]._kick(user_name)
 		lurkers[user_name].queue_free()
 		lurkers.erase(user_name)
+		_log_movement_snapshot("ban", user_name)
+		_write_live_results_csv()
 		var message = user_name + " was kicked from the race."
 		print(message)
 		event_stream.system_message.emit(message)
@@ -194,6 +234,8 @@ func _on_leave_race_attempted(user_name: String):
 		lurkers[user_name].queue_free()
 		lurkers.erase(user_name)
 		_log_race_event("leave", user_name)
+		_log_movement_snapshot("leave", user_name)
+		_write_live_results_csv()
 		var message = user_name + " left the race."
 		print(message)
 		event_stream.system_message.emit(message)
@@ -201,10 +243,12 @@ func _on_leave_race_attempted(user_name: String):
 func _on_lurker_send_to_pit(user_name: String):
 	if lurkers.has(user_name):
 		lurkers[user_name].enter_pit()
+		_log_movement_snapshot("pit", user_name)
 
 func _on_lurker_leave_the_pit(user_name: String):
 	if lurkers.has(user_name):
 		lurkers[user_name].leave_pit()
+		_log_movement_snapshot("leave_pit", user_name)
 
 func _load_crown_textures() -> void:
 	crown_textures[0] = load("res://crowns/gold.png")
@@ -229,6 +273,8 @@ func _on_lurker_lap_completed(user_name: String, lap_count: int) -> void:
 	print(user_name, " completed lap ", lap_count + 1)
 	_update_rankings()
 	_update_crowns()
+	_log_movement_snapshot("lap", user_name)
+	_write_live_results_csv()
 
 func _on_lurker_distance_updated(_username: String, _total_distance: float) -> void:
 	# distance updates are frequent; update rankings and crowns in response
@@ -447,6 +493,87 @@ func _initialize_race_events_csv() -> void:
 			return
 		file.store_line("timestamp,event_type,username")
 
+func _initialize_movement_log_csv() -> void:
+	var file = FileAccess.open(movement_log_csv_path, FileAccess.READ)
+	if file == null:
+		file = FileAccess.open(movement_log_csv_path, FileAccess.WRITE)
+		if file == null:
+			push_error("Failed to create movement_log.csv")
+			return
+		file.store_line("run_id,datetime,timestamp,event_type,username,place,miles,laps,state")
+
+func _state_to_text(lurker: Lurker) -> String:
+	match lurker.state:
+		Lurker.RaceState.Racing:
+			return "racing"
+		Lurker.RaceState.LeavingThePit:
+			return "leaving_pit"
+		Lurker.RaceState.Pitting:
+			return "pitting"
+		Lurker.RaceState.InThePit:
+			return "in_pit"
+		Lurker.RaceState.Stunned:
+			return "stunned"
+		_:
+			return "out"
+
+func _log_movement_snapshot(event_type: String, user_name: String = "") -> void:
+	var file = FileAccess.open(movement_log_csv_path, FileAccess.READ_WRITE)
+	if file == null:
+		push_error("Failed to open movement_log.csv")
+		return
+	file.seek_end()
+	var timestamp = Time.get_ticks_msec()
+	var dt = Time.get_datetime_string_from_system()
+	if user_name != "":
+		if lurkers.has(user_name):
+			var snapshot = _get_lurker_snapshot(user_name)
+			var state = _state_to_text(lurkers[user_name])
+			file.store_line(current_run_id + "," + dt + "," + str(timestamp) + "," + event_type + "," + user_name + "," + str(snapshot["place"]) + "," + snapshot["miles"] + "," + str(snapshot["laps"]) + "," + state)
+		else:
+			file.store_line(current_run_id + "," + dt + "," + str(timestamp) + "," + event_type + "," + user_name + ",999,0.00,0,out")
+		return
+
+	for uname in rankings:
+		if not lurkers.has(uname):
+			continue
+		var tick_snapshot = _get_lurker_snapshot(uname)
+		var tick_state = _state_to_text(lurkers[uname])
+		file.store_line(current_run_id + "," + dt + "," + str(timestamp) + "," + event_type + "," + uname + "," + str(tick_snapshot["place"]) + "," + tick_snapshot["miles"] + "," + str(tick_snapshot["laps"]) + "," + tick_state)
+
+func _write_live_results_csv() -> void:
+	if not DirAccess.dir_exists_absolute(live_results_csv_path.get_base_dir()):
+		DirAccess.make_dir_recursive_absolute(live_results_csv_path.get_base_dir())
+
+	var file = FileAccess.open(live_results_csv_path, FileAccess.WRITE)
+	if file == null and live_results_csv_path.begins_with("res://"):
+		var fallback_path = "user://results/" + live_results_csv_path.get_file()
+		if not DirAccess.dir_exists_absolute("user://results"):
+			DirAccess.make_dir_recursive_absolute("user://results")
+		file = FileAccess.open(fallback_path, FileAccess.WRITE)
+		if file != null:
+			live_results_csv_path = fallback_path
+			print("[CSV] live.csv fallback path in use: ", live_results_csv_path)
+
+	if file == null:
+		push_error("Failed to write live.csv at path: " + live_results_csv_path)
+		return
+	file.store_line("run_id,datetime,timestamp,username,place,miles,laps,state")
+	var timestamp = Time.get_ticks_msec()
+	var dt = Time.get_datetime_string_from_system()
+	for uname in rankings:
+		if not lurkers.has(uname):
+			continue
+		var snapshot = _get_lurker_snapshot(uname)
+		var state = _state_to_text(lurkers[uname])
+		file.store_line(current_run_id + "," + dt + "," + str(timestamp) + "," + uname + "," + str(snapshot["place"]) + "," + snapshot["miles"] + "," + str(snapshot["laps"]) + "," + state)
+
+func _on_movement_timer_timeout() -> void:
+	_update_rankings()
+	_update_crowns()
+	_log_movement_snapshot("tick")
+	_write_live_results_csv()
+
 func _log_race_event(event_type: String, user_name: String) -> void:
 	var file = FileAccess.open(race_events_csv_path, FileAccess.READ_WRITE)
 	if file == null:
@@ -510,10 +637,12 @@ func get_top_3_lurkers() -> Array:
 
 func create_snapshot() -> void:
 	var top_3 = get_top_3_lurkers()
+	var summary_parts = []
 	
 	for i in range(top_3.size()):
 		var username = top_3[i]
 		var snapshot = _get_lurker_snapshot(username)
+		summary_parts.append("%d) %s L%d M%s" % [snapshot["place"], snapshot["username"], snapshot["laps"], snapshot["miles"]])
 		var filename = "user://lurker_%d.txt" % (i + 1)
 		
 		var file = FileAccess.open(filename, FileAccess.WRITE)
@@ -535,7 +664,13 @@ func create_snapshot() -> void:
 		file.store_line("Yellow Traps Thrown: %d" % snapshot["yellow_throws"])
 		file.store_line("Red Traps Thrown: %d" % snapshot["red_throws"])
 	
-	var message = "Snapshot created for top 3 lurkers!"
+	var message = "Snapshot: no active racers."
+	if summary_parts.size() > 0:
+		message = "Snapshot | "
+		for i in range(summary_parts.size()):
+			if i > 0:
+				message += " | "
+			message += summary_parts[i]
 	print(message)
 	event_stream.system_message.emit(message)
 

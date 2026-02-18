@@ -101,8 +101,13 @@ var peer : StreamPeerTCP
 var connected : bool = false
 var user_regex : RegEx = RegEx.new()
 var twitch_restarting : bool = false
+var token_refresh_timer : Timer
+var refresh_in_progress : bool = false
 
 const USER_AGENT : String = "User-Agent: GIFT/4.1.5 (Godot Engine)"
+const TOKEN_MIN_REFRESH_DELAY_SEC : float = 60.0
+const TOKEN_REFRESH_EARLY_BUFFER_SEC : int = 300
+const TOKEN_REFRESH_RETRY_SEC : float = 30.0
 
 enum RequestType {
 	EMOTE,
@@ -147,9 +152,12 @@ func authenticate(client_id, client_secret) -> void:
 	self.client_id = client_id
 	self.client_secret = client_secret
 	print("Checking token...")
-	if (FileAccess.file_exists("res://example/auth.txt")):
-		var file : FileAccess = FileAccess.open_encrypted_with_pass("res://example/auth.txt", FileAccess.READ, client_secret)
-		token = JSON.parse_string(file.get_as_text())
+	token = {}
+	if (FileAccess.file_exists("user://gift/auth/user_token")):
+		var file : FileAccess = FileAccess.open_encrypted_with_pass("user://gift/auth/user_token", FileAccess.READ, client_secret)
+		var parsed = JSON.parse_string(file.get_as_text())
+		if typeof(parsed) == TYPE_DICTIONARY:
+			token = parsed
 		if (token.has("scope") && scopes.size() != 0):
 			if (scopes.size() != token["scope"].size()):
 				get_token()
@@ -159,9 +167,13 @@ func authenticate(client_id, client_secret) -> void:
 					if (!token["scope"].has(scope)):
 						get_token()
 						token = await(user_token_received)
-	else:
+	if token.is_empty():
 		get_token()
 		token = await(user_token_received)
+	if token.is_empty() or not token.has("access_token"):
+		print("Token fetch failed.")
+		user_token_invalid.emit()
+		return
 	username = await(is_token_valid(token["access_token"]))
 	while (username == ""):
 		print("Token invalid.")
@@ -171,10 +183,14 @@ func authenticate(client_id, client_secret) -> void:
 		else:
 			get_token()
 		token = await(user_token_received)
+		if token.is_empty() or not token.has("access_token"):
+			print("Token fetch failed.")
+			user_token_invalid.emit()
+			return
 		username = await(is_token_valid(token["access_token"]))
 	print("Token verified.")
 	user_token_valid.emit()
-	refresh_token()
+	_schedule_token_refresh_from_current_token("authenticate")
 
 func refresh_access_token(refresh : String) -> void:
 	print("Refreshing access token.")
@@ -185,12 +201,16 @@ func refresh_access_token(refresh : String) -> void:
 	request.queue_free()
 	var response : Dictionary = JSON.parse_string(reply[3].get_string_from_utf8())
 	if (response.has("error")):
-		print("Refresh failed, requesting new token.")
-		get_token()
+		print("[TOKEN] Refresh failed: ", response.get("message", response.get("error", "unknown_error")))
+		user_token_received.emit({})
 	else:
+		var old_refresh : String = token.get("refresh_token", "")
 		token = response
+		if old_refresh != "" and not token.has("refresh_token"):
+			token["refresh_token"] = old_refresh
 		var file : FileAccess = FileAccess.open_encrypted_with_pass("user://gift/auth/user_token", FileAccess.WRITE, client_secret)
-		file.store_string(reply[3].get_string_from_utf8())
+		file.store_string(JSON.stringify(token))
+		print("[TOKEN] Refresh success. New access token saved.")
 		user_token_received.emit(response)
 
 # Gets a new auth token from Twitch.
@@ -204,29 +224,46 @@ func get_token() -> void:
 		scope += scopes[scopes.size() - 1]
 	scope = scope.uri_encode()
 	OS.shell_open("https://id.twitch.tv/oauth2/authorize?response_type=code&client_id=" + client_id +"&redirect_uri=http://localhost:18297&scope=" + scope)
-	server.listen(18297)
+	if server.is_listening():
+		server.stop()
+	var listen_err := server.listen(18297)
+	if listen_err != OK:
+		print("Could not start local OAuth callback server on port 18297: ", listen_err)
+		user_token_received.emit({})
+		return
 	print("Waiting for user to login.")
+	peer = null
+	var started_wait := Time.get_ticks_msec()
 	while(!peer):
 		peer = server.take_connection()
-		OS.delay_msec(100)
+		if Time.get_ticks_msec() - started_wait > 180000:
+			print("Timed out waiting for OAuth redirect.")
+			server.stop()
+			user_token_received.emit({})
+			return
+		await(get_tree().create_timer(0.1).timeout)
 	while(peer.get_status() == peer.STATUS_CONNECTED):
 		peer.poll()
 		if (peer.get_available_bytes() > 0):
 			var response = peer.get_utf8_string(peer.get_available_bytes())
 			if (response == ""):
 				print("Empty response. Check if your redirect URL is set to http://localhost:18297.")
+				server.stop()
+				user_token_received.emit({})
 				return
 			var start : int = response.find("?")
 			response = response.substr(start + 1, response.find(" ", start) - start)
 			var data : Dictionary = {}
 			for entry in response.split("&"):
 				var pair = entry.split("=")
-				data[pair[0]] = pair[1] if pair.size() > 0 else ""
+				data[pair[0]] = pair[1] if pair.size() > 1 else ""
 			if (data.has("error")):
 				var msg = "Error %s: %s" % [data["error"], data["error_description"]]
 				print(msg)
 				send_response(peer, "400 BAD REQUEST",  msg.to_utf8_buffer())
 				peer.disconnect_from_host()
+				server.stop()
+				user_token_received.emit({})
 				break
 			else:
 				print("Success.")
@@ -242,9 +279,10 @@ func get_token() -> void:
 				var token_data = answer[3].get_string_from_utf8()
 				file.store_string(token_data)
 				request.queue_free()
+				server.stop()
 				user_token_received.emit(JSON.parse_string(token_data))
 				break
-		OS.delay_msec(100)
+		await(get_tree().create_timer(0.1).timeout)
 
 func send_response(peer : StreamPeer, response : String, body : PackedByteArray) -> void:
 	peer.put_data(("HTTP/1.1 %s\r\n" % response).to_utf8_buffer())
@@ -268,13 +306,74 @@ func is_token_valid(token : String) -> String:
 		return payload["login"]
 	return ""
 
-func refresh_token() -> void:
-	await(get_tree().create_timer(3600).timeout)
-	if (await(is_token_valid(token["access_token"])) == ""):
+func _ensure_token_refresh_timer() -> void:
+	if token_refresh_timer != null:
+		return
+	token_refresh_timer = Timer.new()
+	token_refresh_timer.one_shot = true
+	token_refresh_timer.timeout.connect(_on_token_refresh_timer_timeout)
+	add_child(token_refresh_timer)
+
+func _schedule_token_refresh_from_current_token(source: String) -> void:
+	_ensure_token_refresh_timer()
+	if token.is_empty() or not token.has("access_token"):
+		print("[TOKEN] No access token available to schedule refresh from (", source, ").")
+		return
+
+	var expires_in := int(token.get("expires_in", 0))
+	var refresh_delay := TOKEN_MIN_REFRESH_DELAY_SEC
+	if expires_in > 0:
+		refresh_delay = max(TOKEN_MIN_REFRESH_DELAY_SEC, float(expires_in - TOKEN_REFRESH_EARLY_BUFFER_SEC))
+
+	if token_refresh_timer.is_stopped() == false:
+		token_refresh_timer.stop()
+	token_refresh_timer.wait_time = refresh_delay
+	token_refresh_timer.start()
+	print("[TOKEN] Refresh scheduled in ", refresh_delay, "s from ", source, ".")
+
+func _attempt_token_refresh(reason: String) -> bool:
+	if refresh_in_progress:
+		print("[TOKEN] Refresh already in progress; skipping duplicate request (", reason, ").")
+		return false
+
+	var refresh : String = token.get("refresh_token", "")
+	if refresh == "":
+		print("[TOKEN] No refresh token available (", reason, ").")
+		return false
+
+	refresh_in_progress = true
+	var token_hint := refresh.left(6) + "..."
+	print("[TOKEN] Attempting refresh (", reason, ") using refresh token: ", token_hint)
+	refresh_access_token(refresh)
+	var refreshed = await(user_token_received)
+	refresh_in_progress = false
+
+	if typeof(refreshed) != TYPE_DICTIONARY or refreshed.is_empty() or not refreshed.has("access_token"):
+		print("[TOKEN] Refresh attempt failed (", reason, ").")
+		return false
+
+	token = refreshed
+	var validated_username = await(is_token_valid(token["access_token"]))
+	if validated_username == "":
+		print("[TOKEN] Refreshed token failed validation (", reason, ").")
+		return false
+
+	username = validated_username
+	print("[TOKEN] Refresh validated successfully for user: ", username)
+	user_token_valid.emit()
+	_schedule_token_refresh_from_current_token("refresh_success")
+	return true
+
+func _on_token_refresh_timer_timeout() -> void:
+	var refreshed_ok = await(_attempt_token_refresh("timer"))
+	if not refreshed_ok:
+		print("[TOKEN] Refresh failed on timer; retrying in ", TOKEN_REFRESH_RETRY_SEC, "s.")
+		_ensure_token_refresh_timer()
+		token_refresh_timer.wait_time = TOKEN_REFRESH_RETRY_SEC
+		token_refresh_timer.start()
 		user_token_invalid.emit()
 		return
-	else:
-		refresh_token()
+
 	var to_remove : Array[String] = []
 	for entry in eventsub_messages.keys():
 		if (Time.get_ticks_msec() - eventsub_messages[entry] > 600000):
