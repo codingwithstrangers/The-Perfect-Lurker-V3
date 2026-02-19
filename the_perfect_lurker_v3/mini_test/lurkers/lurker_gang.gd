@@ -19,7 +19,7 @@ var kicked_users_csv_path: String = "res://results/kicked_users.csv"
 var traps_csv_path: String = "res://results/traps_log.csv"
 var race_events_csv_path: String = "res://results/race_events.csv"
 var results_csv_path: String = "res://results/results.csv"
-var live_results_csv_path: String = "res://results/live.csv"
+var live_results_csv_path: String = "user://results/live.csv"
 var movement_log_csv_path: String = "res://results/movement_log.csv"
 var last_result_timestamp: int = 0  # Track when !result was last run
 var movement_timer: Timer

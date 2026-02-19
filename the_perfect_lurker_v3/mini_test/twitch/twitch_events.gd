@@ -323,14 +323,14 @@ func on_chat(sender_data: SenderData, msg: String) -> void:
 		"!leave":
 			event_stream.leave_race_attempted.emit(user_key)
 		"!kick":
-			if sender_data.user.to_lower() == "codingwithstrangers":
+			if _is_broadcaster_user(user_key):
 				if parts.size() > 1:
 					var target_user = parts[1].strip_edges().to_lower()
-					if target_user != "codingwithstrangers":
+					if target_user != _get_broadcaster_login():
 						event_stream.kick_user.emit(target_user)
 			event_stream.lurker_chat.emit(user_key)
 		"!unban":
-			if sender_data.user.to_lower() == "codingwithstrangers":
+			if _is_broadcaster_user(user_key):
 				if parts.size() > 1:
 					var target_user = parts[1].strip_edges().to_lower()
 					event_stream.unban_user.emit(target_user)
@@ -342,12 +342,12 @@ func on_chat(sender_data: SenderData, msg: String) -> void:
 		"!rival", "!rivial":
 			_handle_faaa_command(user_key)
 		"!snapshot":
-			if sender_data.user.to_lower() == "codingwithstrangers":
+			if _is_broadcaster_user(user_key):
 				lurker_gang.create_snapshot()
 			else:
 				chat("Only the broadcaster can use !snapshot")
 		"!result":
-			if sender_data.user.to_lower() == "codingwithstrangers":
+			if _is_broadcaster_user(user_key):
 				lurker_gang.create_result()
 			else:
 				chat("Only the broadcaster can use !result")
@@ -388,6 +388,14 @@ func _handle_lurker_help_command() -> void:
 	chat("Lurker Help | Anyone: !join !trap !missile(!missle) !leave !place !defense !rival(!rivial) !lurkerhelp")
 	chat("Broadcaster only: !kick <user> !unban <user> !snapshot !result")
 	chat("Tip: channel point rewards also support join/trap/missile/leave pit/shield")
+
+func _get_broadcaster_login() -> String:
+	if login_channel != "":
+		return login_channel.to_lower()
+	return "codingwithstrangers"
+
+func _is_broadcaster_user(user_key: String) -> bool:
+	return user_key.to_lower() == _get_broadcaster_login()
 
 func _handle_place_command(user_name: String) -> void:
 	if not lurker_gang.lurkers.has(user_name):
