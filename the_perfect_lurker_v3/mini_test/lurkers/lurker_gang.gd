@@ -15,12 +15,12 @@ var broadcaster_icon: Texture2D = null
 var crown_textures: Dictionary[int, Texture2D] = {}
 var rankings: Array[String] = []
 var kicked_users: Dictionary = {}  # Dictionary used as a set (keys are usernames, values are true)
-var kicked_users_csv_path: String = "res://results/kicked_users.csv"
-var traps_csv_path: String = "res://results/traps_log.csv"
-var race_events_csv_path: String = "res://results/race_events.csv"
-var results_csv_path: String = "res://results/results.csv"
+var kicked_users_csv_path: String = "user://results/kicked_users.csv"
+var traps_csv_path: String = "user://results/traps_log.csv"
+var race_events_csv_path: String = "user://results/race_events.csv"
+var results_csv_path: String = "user://results/results.csv"
 var live_results_csv_path: String = "user://results/live.csv"
-var movement_log_csv_path: String = "res://results/movement_log.csv"
+var movement_log_csv_path: String = "user://results/movement_log.csv"
 var last_result_timestamp: int = 0  # Track when !result was last run
 var movement_timer: Timer
 var current_run_id: String = ""
@@ -256,18 +256,20 @@ func _load_crown_textures() -> void:
 	crown_textures[2] = load("res://crowns/bronze.png")
 
 func _load_broadcaster_icon() -> void:
-	if FileAccess.file_exists(broadcaster_icon_path):
-		var image = Image.new()
-		var err = image.load(broadcaster_icon_path)
-		if err == OK:
-			# Resize to broadcaster_icon_size
-			image.resize(int(broadcaster_icon_size.x), int(broadcaster_icon_size.y))
-			broadcaster_icon = ImageTexture.create_from_image(image)
-			print("Loaded broadcaster icon: ", broadcaster_icon_path)
-		else:
-			push_error("Failed to load broadcaster icon: ", err)
-	else:
-		push_error("Broadcaster icon not found: ", broadcaster_icon_path)
+	var source_texture = load(broadcaster_icon_path) as Texture2D
+	if source_texture == null:
+		push_error("Broadcaster icon not found or failed to import: " + broadcaster_icon_path)
+		return
+
+	var image = source_texture.get_image()
+	if image == null:
+		push_error("Failed to read broadcaster icon image data: " + broadcaster_icon_path)
+		return
+
+	# Resize to broadcaster_icon_size
+	image.resize(int(broadcaster_icon_size.x), int(broadcaster_icon_size.y))
+	broadcaster_icon = ImageTexture.create_from_image(image)
+	print("Loaded broadcaster icon: ", broadcaster_icon_path)
 
 func _on_lurker_lap_completed(user_name: String, lap_count: int) -> void:
 	print(user_name, " completed lap ", lap_count + 1)
@@ -334,7 +336,8 @@ func _update_crowns() -> void:
 			lurker.set_crown(crown_textures[crown_order[i]])
 
 func _load_kicked_users() -> void:
-	var file = FileAccess.open(kicked_users_csv_path, FileAccess.READ)
+	var read_path = _resolve_existing_results_file_path(kicked_users_csv_path)
+	var file = FileAccess.open(read_path, FileAccess.READ)
 	if file == null:
 		return
 	
@@ -355,7 +358,8 @@ func _save_kicked_users() -> void:
 		file.store_line(user_name)
 
 func _load_placement_counts() -> void:
-	var file = FileAccess.open(results_csv_path, FileAccess.READ)
+	var read_path = _resolve_existing_results_file_path(results_csv_path)
+	var file = FileAccess.open(read_path, FileAccess.READ)
 	if file == null:
 		return
 	
@@ -494,9 +498,30 @@ func _initialize_race_events_csv() -> void:
 		file.store_line("timestamp,event_type,username")
 
 func _initialize_movement_log_csv() -> void:
+	if not DirAccess.dir_exists_absolute(movement_log_csv_path.get_base_dir()):
+		DirAccess.make_dir_recursive_absolute(movement_log_csv_path.get_base_dir())
+
 	var file = FileAccess.open(movement_log_csv_path, FileAccess.READ)
+	if file == null and movement_log_csv_path.begins_with("res://"):
+		var fallback_path = "user://results/" + movement_log_csv_path.get_file()
+		if not DirAccess.dir_exists_absolute("user://results"):
+			DirAccess.make_dir_recursive_absolute("user://results")
+		var fallback_read = FileAccess.open(fallback_path, FileAccess.READ)
+		if fallback_read != null:
+			movement_log_csv_path = fallback_path
+			file = fallback_read
+			print("[CSV] movement_log fallback path in use: ", movement_log_csv_path)
+
 	if file == null:
 		file = FileAccess.open(movement_log_csv_path, FileAccess.WRITE)
+		if file == null and movement_log_csv_path.begins_with("res://"):
+			var fallback_path = "user://results/" + movement_log_csv_path.get_file()
+			if not DirAccess.dir_exists_absolute("user://results"):
+				DirAccess.make_dir_recursive_absolute("user://results")
+			file = FileAccess.open(fallback_path, FileAccess.WRITE)
+			if file != null:
+				movement_log_csv_path = fallback_path
+				print("[CSV] movement_log fallback path in use: ", movement_log_csv_path)
 		if file == null:
 			push_error("Failed to create movement_log.csv")
 			return
@@ -519,6 +544,15 @@ func _state_to_text(lurker: Lurker) -> String:
 
 func _log_movement_snapshot(event_type: String, user_name: String = "") -> void:
 	var file = FileAccess.open(movement_log_csv_path, FileAccess.READ_WRITE)
+	if file == null and movement_log_csv_path.begins_with("res://"):
+		var fallback_path = "user://results/" + movement_log_csv_path.get_file()
+		if not DirAccess.dir_exists_absolute("user://results"):
+			DirAccess.make_dir_recursive_absolute("user://results")
+		file = FileAccess.open(fallback_path, FileAccess.READ_WRITE)
+		if file != null:
+			movement_log_csv_path = fallback_path
+			print("[CSV] movement_log fallback path in use: ", movement_log_csv_path)
+
 	if file == null:
 		push_error("Failed to open movement_log.csv")
 		return
@@ -694,7 +728,128 @@ func _build_ranked_list(data: Dictionary) -> String:
 	
 	return result
 
+func _resolve_writable_results_dir() -> String:
+	var preferred_dir = results_csv_path.get_base_dir()
+	if not DirAccess.dir_exists_absolute(preferred_dir):
+		DirAccess.make_dir_recursive_absolute(preferred_dir)
+
+	var probe_path = preferred_dir + "/.write_probe.tmp"
+	var probe = FileAccess.open(probe_path, FileAccess.WRITE)
+	if probe != null:
+		probe.store_line("ok")
+		probe = null
+		DirAccess.remove_absolute(probe_path)
+		return preferred_dir
+
+	var fallback_dir = "user://results"
+	if not DirAccess.dir_exists_absolute(fallback_dir):
+		DirAccess.make_dir_recursive_absolute(fallback_dir)
+	return fallback_dir
+
+func _resolve_existing_results_file_path(primary_path: String) -> String:
+	if FileAccess.open(primary_path, FileAccess.READ) != null:
+		return primary_path
+
+	var filename = primary_path.get_file()
+	var user_path = "user://results/" + filename
+	if FileAccess.open(user_path, FileAccess.READ) != null:
+		return user_path
+
+	var legacy_res_path = "res://results/" + filename
+	if FileAccess.open(legacy_res_path, FileAccess.READ) != null:
+		return legacy_res_path
+
+	return primary_path
+
+func _resolve_results_csv_for_read() -> String:
+	return _resolve_existing_results_file_path(results_csv_path)
+
+func _load_historical_totals_from_results() -> Dictionary:
+	var totals: Dictionary = {}
+	var read_path = _resolve_results_csv_for_read()
+	var file = FileAccess.open(read_path, FileAccess.READ)
+	if file == null:
+		return totals
+
+	# Skip header
+	if not file.eof_reached():
+		file.get_line()
+
+	while not file.eof_reached():
+		var line = file.get_line()
+		if line.strip_edges() == "":
+			continue
+		var parts = line.split(",")
+		if parts.size() < 5:
+			continue
+
+		var user_name = parts[1]
+		var miles = float(parts[3])
+		var laps = int(parts[4])
+
+		if not totals.has(user_name):
+			totals[user_name] = {"miles": 0.0, "laps": 0}
+		totals[user_name]["miles"] += miles
+		totals[user_name]["laps"] += laps
+
+	return totals
+
+func _write_result_view_file(file: FileAccess, snapshot: Dictionary, all_time_miles: float, all_time_laps: int, placement_data: Dictionary) -> void:
+	if file == null:
+		return
+	file.store_line(snapshot["username"])
+	file.store_line("Session Laps: " + str(snapshot["laps"]))
+	file.store_line("Session Miles: " + snapshot["miles"])
+	file.store_line("Total Miles (All Time): " + String.num(all_time_miles, 2))
+	file.store_line("Total Laps (All Time): " + str(all_time_laps))
+	file.store_line("1st x " + str(placement_data.get("1st", 0)) + ", 2nd x " + str(placement_data.get("2nd", 0)) + ", 3rd x " + str(placement_data.get("3rd", 0)))
+
+func _save_top_3_lurker_images(top_place_users: Dictionary) -> void:
+	var output_dir = "user://lurker_image"
+	if not DirAccess.dir_exists_absolute(output_dir):
+		DirAccess.make_dir_recursive_absolute(output_dir)
+
+	var place_to_file = {
+		1: "1st.png",
+		2: "2nd.png",
+		3: "3rd.png"
+	}
+
+	for place in [1, 2, 3]:
+		var texture: Texture2D = null
+		if top_place_users.has(place):
+			var user_name = str(top_place_users[place])
+			if lurkers.has(user_name):
+				var lurker = lurkers[user_name]
+				texture = lurker.profile_image if lurker.profile_image != null else lurker.car_sprite.texture
+
+		if texture == null:
+			var crown_index = place - 1
+			if crown_textures.has(crown_index):
+				texture = crown_textures[crown_index]
+
+		if texture == null:
+			continue
+		var image = texture.get_image()
+		if image == null:
+			continue
+		var output_path = output_dir + "/" + place_to_file[place]
+		var save_err = image.save_png(output_path)
+		if save_err != OK:
+			push_error("Failed to save top place image: " + output_path)
+
 func create_result() -> void:
+	var historical_totals = _load_historical_totals_from_results()
+	var top_place_users: Dictionary = {}
+	var results_dir = _resolve_writable_results_dir()
+	results_csv_path = results_dir + "/results.csv"
+	var result_1_path = results_dir + "/result_1.txt"
+	var result_2_path = results_dir + "/result_2.txt"
+	var result_3_path = results_dir + "/result_3.txt"
+	var result_view_1_path = results_dir + "/result_view_1.txt"
+	var result_view_2_path = results_dir + "/result_view_2.txt"
+	var result_view_3_path = results_dir + "/result_view_3.txt"
+
 	# Initialize results CSV if it doesn't exist
 	var file = FileAccess.open(results_csv_path, FileAccess.READ)
 	if file == null:
@@ -715,11 +870,14 @@ func create_result() -> void:
 	var timestamp = Time.get_ticks_msec()
 	
 	# Create the 3 result text files
-	var result_1_file = FileAccess.open("res://results/result_1.txt", FileAccess.WRITE)
-	var result_2_file = FileAccess.open("res://results/result_2.txt", FileAccess.WRITE)
-	var result_3_file = FileAccess.open("res://results/result_3.txt", FileAccess.WRITE)
+	var result_1_file = FileAccess.open(result_1_path, FileAccess.WRITE)
+	var result_2_file = FileAccess.open(result_2_path, FileAccess.WRITE)
+	var result_3_file = FileAccess.open(result_3_path, FileAccess.WRITE)
+	var result_view_1_file = FileAccess.open(result_view_1_path, FileAccess.WRITE)
+	var result_view_2_file = FileAccess.open(result_view_2_path, FileAccess.WRITE)
+	var result_view_3_file = FileAccess.open(result_view_3_path, FileAccess.WRITE)
 	
-	if result_1_file == null or result_2_file == null or result_3_file == null:
+	if result_1_file == null or result_2_file == null or result_3_file == null or result_view_1_file == null or result_view_2_file == null or result_view_3_file == null:
 		push_error("Failed to create result txt files")
 		return
 	
@@ -743,10 +901,13 @@ func create_result() -> void:
 		# Update placement counts
 		if place == 1:
 			placement_counts[user_name]["1st"] += 1
+			top_place_users[1] = user_name
 		elif place == 2:
 			placement_counts[user_name]["2nd"] += 1
+			top_place_users[2] = user_name
 		elif place == 3:
 			placement_counts[user_name]["3rd"] += 1
+			top_place_users[3] = user_name
 		
 		# Get victim/attacker data for this user
 		var user_victims = victim_details.get(user_name, {})
@@ -796,17 +957,26 @@ func create_result() -> void:
 		txt_content += "Yellow Traps Thrown: " + str(snapshot["yellow_throws"]) + "\n"
 		txt_content += "Red Traps Thrown: " + str(snapshot["red_throws"]) + "\n"
 		txt_content += "\n"
+
+		var user_history = historical_totals.get(user_name, {"miles": 0.0, "laps": 0})
+		var all_time_miles = float(user_history.get("miles", 0.0)) + float(snapshot["miles"])
+		var all_time_laps = int(user_history.get("laps", 0)) + int(snapshot["laps"])
 		
 		# Write to appropriate file based on placement
 		if place == 1:
 			result_1_file.store_line(txt_content)
+			_write_result_view_file(result_view_1_file, snapshot, all_time_miles, all_time_laps, placement_counts[user_name])
 		elif place == 2:
 			result_2_file.store_line(txt_content)
+			_write_result_view_file(result_view_2_file, snapshot, all_time_miles, all_time_laps, placement_counts[user_name])
 		elif place == 3:
 			result_3_file.store_line(txt_content)
+			_write_result_view_file(result_view_3_file, snapshot, all_time_miles, all_time_laps, placement_counts[user_name])
+
+	_save_top_3_lurker_images(top_place_users)
 	
 	last_result_timestamp = Time.get_ticks_msec()
-	var message = "Results saved! Files created: result_1.txt, result_2.txt, result_3.txt"
+	var message = "Results saved in " + results_dir + " | files: result_1/2/3 + result_view_1/2/3"
 	print(message)
 	event_stream.system_message.emit(message)
 

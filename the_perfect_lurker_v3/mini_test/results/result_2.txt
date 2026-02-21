@@ -1,17 +1,1 @@
 === 2ND PLACE ===
-Player: robodom_
-Miles: 512.81
-Laps: 238
-Races Joined: 1
-Rejoin Count: 0
-Leave Count: 0
-Ban Count: 0
-1st Place Finishes: 0
-2nd Place Finishes: 2
-3rd Place Finishes: 0
-Yellow Traps Hit: 2
-Red Traps Hit: 2
-Yellow Traps Thrown: 2
-Red Traps Thrown: 1
-
-

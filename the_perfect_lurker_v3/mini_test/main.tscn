@@ -29,6 +29,7 @@
 [ext_resource type="Texture2D" uid="uid://cccuw7mfd6y0n" path="res://missile/kunai/kunai.png" id="24_qsp4k"]
 [ext_resource type="Texture2D" uid="uid://duqu4ikb1ro1g" path="res://missile/kunai/batarang.png" id="25_kq58d"]
 [ext_resource type="Texture2D" uid="uid://bvivtgtpo2lla" path="res://missile/rasengan/rasensuriken.png" id="26_j7n2w"]
+[ext_resource type="Script" path="res://events/runtime_logger.gd" id="27_2h0l2"]
 
 [sub_resource type="Curve2D" id="Curve2D_cegan"]
 _data = {
@@ -368,6 +369,13 @@ text_commands_enabled = true
 command_prefixes = Array[String]([])
 scopes = Array[String](["chat:edit", "chat:read", "channel:read:redemptions", "channel:read:subscriptions"])
 disk_cache = true
+
+[node name="runtime_logger" type="Node" parent="managers" node_paths=PackedStringArray("event_stream", "twitch_events", "lurker_gang", "ui_root")]
+script = ExtResource("27_2h0l2")
+event_stream = NodePath("../event_stream")
+twitch_events = NodePath("../twitch_events")
+lurker_gang = NodePath("../lurker_gang")
+ui_root = NodePath("../../ui_root")
 
 [node name="track_manager" type="Node" parent="managers" node_paths=PackedStringArray("select_track")]
 script = ExtResource("18_cegan")

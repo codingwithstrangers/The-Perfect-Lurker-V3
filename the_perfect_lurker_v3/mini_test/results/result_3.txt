@@ -1,17 +1,1 @@
 === 3RD PLACE ===
-Player: theidentitybooth
-Miles: 509.75
-Laps: 237
-Races Joined: 1
-Rejoin Count: 0
-Leave Count: 0
-Ban Count: 0
-1st Place Finishes: 0
-2nd Place Finishes: 0
-3rd Place Finishes: 1
-Yellow Traps Hit: 3
-Red Traps Hit: 0
-Yellow Traps Thrown: 0
-Red Traps Thrown: 0
-
-

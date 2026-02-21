@@ -15,6 +15,7 @@ signal user_token_received(token_data)
 signal user_token_valid
 # User token is no longer valid.
 signal user_token_invalid
+signal token_refresh_status(status, details)
 # The client tried to login to Twitch IRC. Returns true if successful, else false.
 signal login_attempt(success)
 # User sent a message in chat.
@@ -314,10 +315,14 @@ func _ensure_token_refresh_timer() -> void:
 	token_refresh_timer.timeout.connect(_on_token_refresh_timer_timeout)
 	add_child(token_refresh_timer)
 
+func _emit_token_refresh_status(status: String, details: Dictionary = {}) -> void:
+	token_refresh_status.emit(status, details)
+
 func _schedule_token_refresh_from_current_token(source: String) -> void:
 	_ensure_token_refresh_timer()
 	if token.is_empty() or not token.has("access_token"):
 		print("[TOKEN] No access token available to schedule refresh from (", source, ").")
+		_emit_token_refresh_status("schedule_skipped", {"source": source, "reason": "missing_access_token"})
 		return
 
 	var expires_in := int(token.get("expires_in", 0))
@@ -330,44 +335,53 @@ func _schedule_token_refresh_from_current_token(source: String) -> void:
 	token_refresh_timer.wait_time = refresh_delay
 	token_refresh_timer.start()
 	print("[TOKEN] Refresh scheduled in ", refresh_delay, "s from ", source, ".")
+	_emit_token_refresh_status("scheduled", {"source": source, "delay_sec": refresh_delay})
 
 func _attempt_token_refresh(reason: String) -> bool:
 	if refresh_in_progress:
 		print("[TOKEN] Refresh already in progress; skipping duplicate request (", reason, ").")
+		_emit_token_refresh_status("attempt_skipped", {"reason": reason, "cause": "in_progress"})
 		return false
 
 	var refresh : String = token.get("refresh_token", "")
 	if refresh == "":
 		print("[TOKEN] No refresh token available (", reason, ").")
+		_emit_token_refresh_status("attempt_failed", {"reason": reason, "cause": "missing_refresh_token"})
 		return false
 
 	refresh_in_progress = true
 	var token_hint := refresh.left(6) + "..."
 	print("[TOKEN] Attempting refresh (", reason, ") using refresh token: ", token_hint)
+	_emit_token_refresh_status("attempting", {"reason": reason, "refresh_hint": token_hint})
 	refresh_access_token(refresh)
 	var refreshed = await(user_token_received)
 	refresh_in_progress = false
 
 	if typeof(refreshed) != TYPE_DICTIONARY or refreshed.is_empty() or not refreshed.has("access_token"):
 		print("[TOKEN] Refresh attempt failed (", reason, ").")
+		_emit_token_refresh_status("attempt_failed", {"reason": reason, "cause": "empty_or_invalid_response"})
 		return false
 
 	token = refreshed
 	var validated_username = await(is_token_valid(token["access_token"]))
 	if validated_username == "":
 		print("[TOKEN] Refreshed token failed validation (", reason, ").")
+		_emit_token_refresh_status("attempt_failed", {"reason": reason, "cause": "post_refresh_validation_failed"})
 		return false
 
 	username = validated_username
 	print("[TOKEN] Refresh validated successfully for user: ", username)
+	_emit_token_refresh_status("success", {"reason": reason, "username": username})
 	user_token_valid.emit()
 	_schedule_token_refresh_from_current_token("refresh_success")
 	return true
 
 func _on_token_refresh_timer_timeout() -> void:
+	_emit_token_refresh_status("timer_fired", {})
 	var refreshed_ok = await(_attempt_token_refresh("timer"))
 	if not refreshed_ok:
 		print("[TOKEN] Refresh failed on timer; retrying in ", TOKEN_REFRESH_RETRY_SEC, "s.")
+		_emit_token_refresh_status("retry_scheduled", {"delay_sec": TOKEN_REFRESH_RETRY_SEC})
 		_ensure_token_refresh_timer()
 		token_refresh_timer.wait_time = TOKEN_REFRESH_RETRY_SEC
 		token_refresh_timer.start()
