@@ -102,13 +102,22 @@ var peer : StreamPeerTCP
 var connected : bool = false
 var user_regex : RegEx = RegEx.new()
 var twitch_restarting : bool = false
+
+# Token-loop state:
+# - token_expires_at_unix tracks absolute expiry time from Twitch data.
+# - token_refresh_retry_count/next_unix control backoff when refresh fails.
 var token_refresh_timer : Timer
 var refresh_in_progress : bool = false
+var token_expires_at_unix : int = 0
+var token_refresh_retry_count : int = 0
+var token_refresh_retry_next_unix : int = 0
 
 const USER_AGENT : String = "User-Agent: GIFT/4.1.5 (Godot Engine)"
-const TOKEN_MIN_REFRESH_DELAY_SEC : float = 60.0
-const TOKEN_REFRESH_EARLY_BUFFER_SEC : int = 300
-const TOKEN_REFRESH_RETRY_SEC : float = 30.0
+const TOKEN_CHECK_INTERVAL_SEC : float = 30.0
+const TOKEN_REFRESH_MARGIN_SEC : int = 300
+const TOKEN_REFRESH_RETRY_BASE_SEC : float = 15.0
+const TOKEN_REFRESH_RETRY_MAX_SEC : float = 300.0
+const TOKEN_REFRESH_MAX_RETRIES : int = 6
 
 enum RequestType {
 	EMOTE,
@@ -153,47 +162,46 @@ func authenticate(client_id, client_secret) -> void:
 	self.client_id = client_id
 	self.client_secret = client_secret
 	print("Checking token...")
-	token = {}
-	if (FileAccess.file_exists("user://gift/auth/user_token")):
-		var file : FileAccess = FileAccess.open_encrypted_with_pass("user://gift/auth/user_token", FileAccess.READ, client_secret)
-		var parsed = JSON.parse_string(file.get_as_text())
-		if typeof(parsed) == TYPE_DICTIONARY:
-			token = parsed
-		if (token.has("scope") && scopes.size() != 0):
-			if (scopes.size() != token["scope"].size()):
-				get_token()
-				token = await(user_token_received)
-			else:
-				for scope in scopes:
-					if (!token["scope"].has(scope)):
-						get_token()
-						token = await(user_token_received)
-	if token.is_empty():
-		get_token()
-		token = await(user_token_received)
-	if token.is_empty() or not token.has("access_token"):
-		print("Token fetch failed.")
-		user_token_invalid.emit()
-		return
-	username = await(is_token_valid(token["access_token"]))
-	while (username == ""):
-		print("Token invalid.")
-		var refresh : String = token.get("refresh_token", "")
-		if (refresh != ""):
-			refresh_access_token(refresh)
-		else:
-			get_token()
-		token = await(user_token_received)
-		if token.is_empty() or not token.has("access_token"):
+	# 1) Prefer cached token from disk.
+	token = _load_token_from_disk()
+	# 2) If missing/invalid scopes, require fresh interactive OAuth.
+	if token.is_empty() or not _token_has_required_scopes(token):
+		var fetched = await(_fetch_new_token_interactive())
+		if fetched.is_empty():
 			print("Token fetch failed.")
 			user_token_invalid.emit()
 			return
-		username = await(is_token_valid(token["access_token"]))
-	print("Token verified.")
-	user_token_valid.emit()
-	_schedule_token_refresh_from_current_token("authenticate")
 
-func refresh_access_token(refresh : String) -> void:
+	# 3) Apply token to runtime state (expiry timestamp + persistence format).
+	if not _apply_token_state(token, false):
+		print("Token state invalid after load.")
+		user_token_invalid.emit()
+		return
+
+	# 4) Validate access token with Twitch. If invalid, try refresh, then re-login fallback.
+	username = await(is_token_valid(token["access_token"]))
+	if (username == ""):
+		print("Token invalid.")
+		var refreshed_ok = await(_attempt_token_refresh("authenticate_invalid"))
+		if not refreshed_ok:
+			var fetched = await(_fetch_new_token_interactive())
+			if fetched.is_empty():
+				print("Token fetch failed.")
+				user_token_invalid.emit()
+				return
+			username = await(is_token_valid(token["access_token"]))
+			if username == "":
+				print("Token validation failed after re-login.")
+				user_token_invalid.emit()
+				return
+	print("Token verified.")
+	token_refresh_retry_count = 0
+	token_refresh_retry_next_unix = 0
+	user_token_valid.emit()
+	# 5) Start the background refresh loop.
+	_start_token_loop("authenticate")
+
+func refresh_access_token(refresh : String) -> Dictionary:
 	print("Refreshing access token.")
 	var request : HTTPRequest = HTTPRequest.new()
 	add_child(request)
@@ -203,16 +211,13 @@ func refresh_access_token(refresh : String) -> void:
 	var response : Dictionary = JSON.parse_string(reply[3].get_string_from_utf8())
 	if (response.has("error")):
 		print("[TOKEN] Refresh failed: ", response.get("message", response.get("error", "unknown_error")))
-		user_token_received.emit({})
+		return {}
 	else:
 		var old_refresh : String = token.get("refresh_token", "")
-		token = response
-		if old_refresh != "" and not token.has("refresh_token"):
-			token["refresh_token"] = old_refresh
-		var file : FileAccess = FileAccess.open_encrypted_with_pass("user://gift/auth/user_token", FileAccess.WRITE, client_secret)
-		file.store_string(JSON.stringify(token))
+		if old_refresh != "" and not response.has("refresh_token"):
+			response["refresh_token"] = old_refresh
 		print("[TOKEN] Refresh success. New access token saved.")
-		user_token_received.emit(response)
+		return response
 
 # Gets a new auth token from Twitch.
 func get_token() -> void:
@@ -307,35 +312,92 @@ func is_token_valid(token : String) -> String:
 		return payload["login"]
 	return ""
 
+func _load_token_from_disk() -> Dictionary:
+	if not FileAccess.file_exists("user://gift/auth/user_token"):
+		return {}
+	var file : FileAccess = FileAccess.open_encrypted_with_pass("user://gift/auth/user_token", FileAccess.READ, client_secret)
+	if file == null:
+		return {}
+	var parsed = JSON.parse_string(file.get_as_text())
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return {}
+	return parsed
+
+func _token_has_required_scopes(token_data: Dictionary) -> bool:
+	if scopes.is_empty():
+		return true
+	if not token_data.has("scope"):
+		return false
+	var token_scopes = token_data["scope"]
+	if typeof(token_scopes) != TYPE_ARRAY:
+		return false
+	for scope in scopes:
+		if not token_scopes.has(scope):
+			return false
+	return true
+
+func _save_token_to_disk(token_data: Dictionary) -> void:
+	if not DirAccess.dir_exists_absolute("user://gift/auth"):
+		DirAccess.make_dir_recursive_absolute("user://gift/auth")
+	var file : FileAccess = FileAccess.open_encrypted_with_pass("user://gift/auth/user_token", FileAccess.WRITE, client_secret)
+	if file == null:
+		return
+	file.store_string(JSON.stringify(token_data))
+
+func _apply_token_state(token_data: Dictionary, persist: bool = true) -> bool:
+	if typeof(token_data) != TYPE_DICTIONARY:
+		return false
+	if token_data.is_empty() or not token_data.has("access_token"):
+		return false
+
+	token = token_data.duplicate(true)
+	var now := int(Time.get_unix_time_from_system())
+	# Accept either absolute expiry (preferred) or expires_in from Twitch.
+	if token.has("expires_at_unix"):
+		token_expires_at_unix = int(token.get("expires_at_unix", 0))
+	elif token.has("expires_in"):
+		token_expires_at_unix = now + int(token.get("expires_in", 0))
+	else:
+		token_expires_at_unix = 0
+
+	token["expires_at_unix"] = token_expires_at_unix
+
+	if persist:
+		_save_token_to_disk(token)
+	return true
+
+func _fetch_new_token_interactive() -> Dictionary:
+	get_token()
+	var fetched = await(user_token_received)
+	if typeof(fetched) != TYPE_DICTIONARY or fetched.is_empty() or not fetched.has("access_token"):
+		return {}
+	if not _apply_token_state(fetched, true):
+		return {}
+	return token
+
 func _ensure_token_refresh_timer() -> void:
 	if token_refresh_timer != null:
 		return
 	token_refresh_timer = Timer.new()
-	token_refresh_timer.one_shot = true
-	token_refresh_timer.timeout.connect(_on_token_refresh_timer_timeout)
+	token_refresh_timer.one_shot = false
+	token_refresh_timer.wait_time = TOKEN_CHECK_INTERVAL_SEC
+	token_refresh_timer.timeout.connect(_on_token_refresh_tick)
 	add_child(token_refresh_timer)
+
+func _start_token_loop(source: String) -> void:
+	_ensure_token_refresh_timer()
+	if token_refresh_timer.is_stopped():
+		token_refresh_timer.start()
+	_emit_token_refresh_status("loop_started", {"source": source, "interval_sec": TOKEN_CHECK_INTERVAL_SEC})
+
+func _calc_refresh_retry_delay_sec() -> float:
+	var exp = max(0, token_refresh_retry_count - 1)
+	var base = min(TOKEN_REFRESH_RETRY_MAX_SEC, TOKEN_REFRESH_RETRY_BASE_SEC * pow(2.0, exp))
+	var jitter = randf_range(0.0, 2.0)
+	return min(TOKEN_REFRESH_RETRY_MAX_SEC, base + jitter)
 
 func _emit_token_refresh_status(status: String, details: Dictionary = {}) -> void:
 	token_refresh_status.emit(status, details)
-
-func _schedule_token_refresh_from_current_token(source: String) -> void:
-	_ensure_token_refresh_timer()
-	if token.is_empty() or not token.has("access_token"):
-		print("[TOKEN] No access token available to schedule refresh from (", source, ").")
-		_emit_token_refresh_status("schedule_skipped", {"source": source, "reason": "missing_access_token"})
-		return
-
-	var expires_in := int(token.get("expires_in", 0))
-	var refresh_delay := TOKEN_MIN_REFRESH_DELAY_SEC
-	if expires_in > 0:
-		refresh_delay = max(TOKEN_MIN_REFRESH_DELAY_SEC, float(expires_in - TOKEN_REFRESH_EARLY_BUFFER_SEC))
-
-	if token_refresh_timer.is_stopped() == false:
-		token_refresh_timer.stop()
-	token_refresh_timer.wait_time = refresh_delay
-	token_refresh_timer.start()
-	print("[TOKEN] Refresh scheduled in ", refresh_delay, "s from ", source, ".")
-	_emit_token_refresh_status("scheduled", {"source": source, "delay_sec": refresh_delay})
 
 func _attempt_token_refresh(reason: String) -> bool:
 	if refresh_in_progress:
@@ -353,8 +415,7 @@ func _attempt_token_refresh(reason: String) -> bool:
 	var token_hint := refresh.left(6) + "..."
 	print("[TOKEN] Attempting refresh (", reason, ") using refresh token: ", token_hint)
 	_emit_token_refresh_status("attempting", {"reason": reason, "refresh_hint": token_hint})
-	refresh_access_token(refresh)
-	var refreshed = await(user_token_received)
+	var refreshed = await(refresh_access_token(refresh))
 	refresh_in_progress = false
 
 	if typeof(refreshed) != TYPE_DICTIONARY or refreshed.is_empty() or not refreshed.has("access_token"):
@@ -362,7 +423,9 @@ func _attempt_token_refresh(reason: String) -> bool:
 		_emit_token_refresh_status("attempt_failed", {"reason": reason, "cause": "empty_or_invalid_response"})
 		return false
 
-	token = refreshed
+	if not _apply_token_state(refreshed, true):
+		_emit_token_refresh_status("attempt_failed", {"reason": reason, "cause": "apply_token_state_failed"})
+		return false
 	var validated_username = await(is_token_valid(token["access_token"]))
 	if validated_username == "":
 		print("[TOKEN] Refreshed token failed validation (", reason, ").")
@@ -373,27 +436,62 @@ func _attempt_token_refresh(reason: String) -> bool:
 	print("[TOKEN] Refresh validated successfully for user: ", username)
 	_emit_token_refresh_status("success", {"reason": reason, "username": username})
 	user_token_valid.emit()
-	_schedule_token_refresh_from_current_token("refresh_success")
+	# Force reconnect so IRC/EventSub sessions start using the rotated token.
+	if connected and websocket != null:
+		twitch_restarting = true
+		websocket.close()
+	if eventsub_connected and eventsub != null:
+		eventsub.close()
 	return true
 
-func _on_token_refresh_timer_timeout() -> void:
-	_emit_token_refresh_status("timer_fired", {})
-	var refreshed_ok = await(_attempt_token_refresh("timer"))
-	if not refreshed_ok:
-		print("[TOKEN] Refresh failed on timer; retrying in ", TOKEN_REFRESH_RETRY_SEC, "s.")
-		_emit_token_refresh_status("retry_scheduled", {"delay_sec": TOKEN_REFRESH_RETRY_SEC})
-		_ensure_token_refresh_timer()
-		token_refresh_timer.wait_time = TOKEN_REFRESH_RETRY_SEC
-		token_refresh_timer.start()
-		user_token_invalid.emit()
-		return
-
+func _on_token_refresh_tick() -> void:
+	# Housekeeping for EventSub de-dup cache.
 	var to_remove : Array[String] = []
 	for entry in eventsub_messages.keys():
 		if (Time.get_ticks_msec() - eventsub_messages[entry] > 600000):
 			to_remove.append(entry)
 	for n in to_remove:
 		eventsub_messages.erase(n)
+
+	if refresh_in_progress:
+		return
+	if token.is_empty() or not token.has("access_token"):
+		return
+
+	var now := int(Time.get_unix_time_from_system())
+	if token_refresh_retry_next_unix > 0 and now < token_refresh_retry_next_unix:
+		return
+
+	if token_expires_at_unix <= 0 and token.has("expires_in"):
+		token_expires_at_unix = now + int(token.get("expires_in", 0))
+
+	if token_expires_at_unix <= 0:
+		return
+
+	# Refresh once token enters safety margin window.
+	var remaining := token_expires_at_unix - now
+	_emit_token_refresh_status("tick", {"remaining_sec": remaining})
+	if remaining > TOKEN_REFRESH_MARGIN_SEC:
+		return
+
+	var refreshed_ok = await(_attempt_token_refresh("timer"))
+	if refreshed_ok:
+		token_refresh_retry_count = 0
+		token_refresh_retry_next_unix = 0
+		return
+
+	token_refresh_retry_count += 1
+	if token_refresh_retry_count >= TOKEN_REFRESH_MAX_RETRIES:
+		# Hard failure: caller should re-authenticate interactively.
+		print("[TOKEN] Refresh failed too many times; token considered invalid.")
+		_emit_token_refresh_status("fatal", {"retries": token_refresh_retry_count})
+		user_token_invalid.emit()
+		return
+
+	var retry_delay = _calc_refresh_retry_delay_sec()
+	token_refresh_retry_next_unix = now + int(retry_delay)
+	print("[TOKEN] Refresh failed; retry #", token_refresh_retry_count, " in ", retry_delay, "s.")
+	_emit_token_refresh_status("retry_scheduled", {"retry": token_refresh_retry_count, "delay_sec": retry_delay})
 
 func _process(delta : float) -> void:
 	if (websocket):

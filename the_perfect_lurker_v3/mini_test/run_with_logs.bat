@@ -1,6 +1,11 @@
 @echo off
 setlocal EnableDelayedExpansion
 
+rem Generic EXE launcher with runtime log capture.
+rem - Discovers EXEs (or accepts one as argument)
+rem - Warns if matching Godot .pck sidecar is missing
+rem - Pipes stdout/stderr to logs\exe_runtime_YYYYMMDD_HHMMSS.log
+
 set "BASE_DIR=%~dp0"
 set "LOG_DIR=%BASE_DIR%logs"
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
@@ -80,6 +85,16 @@ if not exist "%EXE_PATH%" (
     echo EXE does not exist: %EXE_PATH%
     pause
     exit /b 1
+)
+
+rem Validate matching .pck sidecar commonly required by Godot exports.
+for %%A in ("%EXE_PATH%") do (
+    set "EXPECTED_PCK=%%~dpA%%~nA.pck"
+)
+if exist "!EXPECTED_PCK!" (
+    echo Sidecar found: !EXPECTED_PCK!
+) else (
+    echo Warning: matching PCK not found: !EXPECTED_PCK!
 )
 
 echo Running: %EXE_PATH%

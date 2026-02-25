@@ -20,7 +20,7 @@ var trap_reward: String
 var missile_reward: String
 var leave_pit_reward: String
 var score_board: String
-@export_range(1.0, 60.0, 1.0, "suffix:min") var chat_sync_interval_minutes: float = 10.0
+@export_range(5.0, 300.0, 1.0, "suffix:sec") var chat_sync_interval_seconds: float = 30.0
 const RECONNECT_DELAY_SEC := 5.0
 const HEALTHCHECK_INTERVAL_SEC := 30.0
 
@@ -33,6 +33,7 @@ var health_timer: Timer
 var chat_sync_timer: Timer
 var status_layer: CanvasLayer
 var status_label: Label
+const CHAT_NAMES_SNAPSHOT_PATH := "user://results/chat_names.txt"
 var active_chat_users: Dictionary = {}
 var names_snapshot_users: Dictionary = {}
 var names_refresh_in_progress: bool = false
@@ -68,10 +69,11 @@ func _ready() -> void:
 
 	chat_sync_timer = Timer.new()
 	chat_sync_timer.one_shot = false
-	chat_sync_timer.wait_time = chat_sync_interval_minutes * 60.0
+	chat_sync_timer.wait_time = chat_sync_interval_seconds
 	chat_sync_timer.timeout.connect(_on_chat_sync_timer_timeout)
 	add_child(chat_sync_timer)
 	chat_sync_timer.start()
+	_write_chat_names_snapshot_file()
 
 
 func try_login(
@@ -79,6 +81,7 @@ func try_login(
 	client_secret_edit: String,
 	channel_edit: String,
 ):
+	# Seed runtime credentials from UI and start connect workflow.
 	login_client_id = client_id_edit
 	login_client_secret = client_secret_edit
 	login_channel = channel_edit.to_lower()
@@ -86,6 +89,7 @@ func try_login(
 	await _connect_and_subscribe()
 
 func _connect_and_subscribe() -> void:
+	# Unified path used for first login and all reconnect attempts.
 	_load_login_from_settings_if_needed()
 	if login_client_id == "" or login_client_secret == "" or login_channel == "":
 		_update_status_label("Missing Login Settings")
@@ -121,6 +125,7 @@ func _subscribe_core_events() -> void:
 	)
 
 func _schedule_reconnect(reason: String) -> void:
+	# Debounced reconnect scheduling: only one reconnect timer at a time.
 	_load_login_from_settings_if_needed()
 	if login_client_id == "" or login_client_secret == "" or login_channel == "":
 		return
@@ -136,10 +141,12 @@ func _on_reconnect_timer_timeout() -> void:
 	print("[TWITCH] Attempting reconnect...")
 	_update_status_label("Reconnecting...")
 	await _connect_and_subscribe()
+	# If reconnect flag is still set (partial failure), keep retrying.
 	if reconnect_in_progress:
 		reconnect_timer.start()
 
 func _healthcheck_connection() -> void:
+	# Periodic watchdog for both IRC and EventSub sockets.
 	_load_login_from_settings_if_needed()
 	if login_client_id == "" or login_channel == "":
 		return
@@ -168,6 +175,7 @@ func _on_events_unavailable() -> void:
 	_schedule_reconnect("EventSub unavailable")
 
 func _on_user_token_invalid() -> void:
+	# Token loop can raise this after repeated refresh failures.
 	_update_status_label("Token Invalid")
 	_schedule_reconnect("Token invalid")
 
@@ -222,6 +230,44 @@ func _update_status_label(status_text: String) -> void:
 		return
 	status_label.text = "Twitch: " + status_text
 
+func _apply_chat_source_of_truth(snapshot_users: Dictionary, reason: String) -> void:
+	active_chat_users = snapshot_users.duplicate()
+	_write_chat_names_snapshot_file()
+	_sync_lurkers_with_chat_presence()
+	if OS.is_debug_build():
+		print("[CHAT_SOT] ", reason, " users=", active_chat_users.size())
+
+func _set_chat_user_presence(user_name: String, is_present: bool, reason: String) -> void:
+	if user_name == "":
+		return
+	if is_present:
+		active_chat_users[user_name] = true
+	else:
+		active_chat_users.erase(user_name)
+	_write_chat_names_snapshot_file()
+	_sync_lurkers_with_chat_presence()
+	if OS.is_debug_build():
+		print("[CHAT_SOT] ", reason, " user=", user_name, " present=", is_present)
+
+func _write_chat_names_snapshot_file() -> void:
+	var ensure_dir_err = DirAccess.make_dir_recursive_absolute("user://results")
+	if ensure_dir_err != OK and ensure_dir_err != ERR_ALREADY_EXISTS:
+		push_warning("Failed creating results dir for chat snapshot: " + str(ensure_dir_err))
+		return
+
+	var chat_names: Array[String] = []
+	for user_name in active_chat_users.keys():
+		chat_names.append(str(user_name))
+	chat_names.sort()
+
+	var output = FileAccess.open(CHAT_NAMES_SNAPSHOT_PATH, FileAccess.WRITE)
+	if output == null:
+		push_warning("Failed writing chat snapshot to " + CHAT_NAMES_SNAPSHOT_PATH)
+		return
+
+	for user_name in chat_names:
+		output.store_line(user_name)
+
 func _request_chat_names_refresh() -> void:
 	if login_channel == "":
 		return
@@ -236,13 +282,11 @@ func _on_unhandled_irc_message(message: String, _tags: Dictionary) -> void:
 	# Track real-time JOIN/PART updates
 	if " JOIN #" in message:
 		var join_name = _extract_irc_user_name(message)
-		if join_name != "":
-			active_chat_users[join_name] = true
+		_set_chat_user_presence(join_name, true, "JOIN")
 		return
 	if " PART #" in message:
 		var part_name = _extract_irc_user_name(message)
-		if part_name != "":
-			active_chat_users.erase(part_name)
+		_set_chat_user_presence(part_name, false, "PART")
 		return
 
 	# NAMES payload chunks
@@ -254,9 +298,8 @@ func _on_unhandled_irc_message(message: String, _tags: Dictionary) -> void:
 
 	# End of NAMES list
 	if " 366 " in message and names_refresh_in_progress:
-		active_chat_users = names_snapshot_users.duplicate()
+		_apply_chat_source_of_truth(names_snapshot_users, "NAMES_366")
 		names_refresh_in_progress = false
-		_sync_lurkers_with_chat_presence()
 
 func _extract_irc_user_name(message: String) -> String:
 	if not message.begins_with(":"):

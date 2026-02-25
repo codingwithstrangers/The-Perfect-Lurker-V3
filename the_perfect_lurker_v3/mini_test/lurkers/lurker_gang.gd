@@ -15,6 +15,8 @@ var broadcaster_icon: Texture2D = null
 var crown_textures: Dictionary[int, Texture2D] = {}
 var rankings: Array[String] = []
 var kicked_users: Dictionary = {}  # Dictionary used as a set (keys are usernames, values are true)
+# Runtime output files for race telemetry/results.
+# These use user:// so exported builds can always write data.
 var kicked_users_csv_path: String = "user://results/kicked_users.csv"
 var traps_csv_path: String = "user://results/traps_log.csv"
 var race_events_csv_path: String = "user://results/race_events.csv"
@@ -56,11 +58,14 @@ func _ready():
 	_initialize_race_events_csv()
 	_initialize_movement_log_csv()
 	current_run_id = str(int(Time.get_unix_time_from_system()))
+	# Print resolved output locations once on startup for troubleshooting.
+	_print_output_paths()
 	_write_live_results_csv()
 
 	movement_timer = Timer.new()
 	movement_timer.one_shot = false
 	movement_timer.wait_time = 5.0
+	# Every tick writes live standings + movement history snapshots.
 	movement_timer.timeout.connect(_on_movement_timer_timeout)
 	add_child(movement_timer)
 	movement_timer.start()
@@ -79,9 +84,9 @@ func _on_join_race_attempted(user_name: String, profile_url: String):
 		var lurker = lurkers[user_name]
 		# Prevent rejoining via !join if already in race or in pit
 		if lurker.state == Lurker.RaceState.InThePit or lurker.state == Lurker.RaceState.Pitting:
-			var message = user_name + " is already in the pit. Use the pit token to return to the track."
-			print(message)
-			event_stream.system_message.emit(message)
+			var pit_message = user_name + " is already in the pit. Use the pit token to return to the track."
+			print(pit_message)
+			event_stream.system_message.emit(pit_message)
 			return
 		var message = user_name + " is already in the race."
 		print(message)
@@ -289,7 +294,7 @@ func _update_rankings() -> void:
 	for user_name in lurkers.keys():
 		var lurker = lurkers[user_name]
 		# Exclude broadcaster from rankings
-		if lurker.state != Lurker.RaceState.Out and user_name.to_lower() != BROADCASTER_USERNAME:
+		if lurker.state != Lurker.RaceState.Out and user_name.to_lower() != _get_broadcaster_login():
 			racing_lurkers.append(user_name)
 
 	# sort descending by total_distance using a simple stable selection sort
@@ -608,6 +613,12 @@ func _on_movement_timer_timeout() -> void:
 	_log_movement_snapshot("tick")
 	_write_live_results_csv()
 
+func _print_output_paths() -> void:
+	var results_dir = results_csv_path.get_base_dir()
+	print("[CSV] results dir: ", results_dir, " -> ", ProjectSettings.globalize_path(results_dir))
+	print("[CSV] movement log: ", movement_log_csv_path, " -> ", ProjectSettings.globalize_path(movement_log_csv_path))
+	print("[CSV] live csv: ", live_results_csv_path, " -> ", ProjectSettings.globalize_path(live_results_csv_path))
+
 func _log_race_event(event_type: String, user_name: String) -> void:
 	var file = FileAccess.open(race_events_csv_path, FileAccess.READ_WRITE)
 	if file == null:
@@ -728,25 +739,71 @@ func _build_ranked_list(data: Dictionary) -> String:
 	
 	return result
 
+func _parse_ranked_list(text: String) -> Dictionary:
+	# Parse values like "playerA(2), playerB(1)" into {playerA:2, playerB:1}.
+	var parsed: Dictionary = {}
+	var src = text.strip_edges()
+	if src == "":
+		return parsed
+	for part in src.split(","):
+		var item = part.strip_edges()
+		if item == "":
+			continue
+		var l = item.rfind("(")
+		var r = item.rfind(")")
+		if l == -1 or r == -1 or r <= l:
+			continue
+		var parsed_name = item.substr(0, l).strip_edges()
+		var count_str = item.substr(l + 1, r - l - 1).strip_edges()
+		var count = int(count_str)
+		if parsed_name == "":
+			continue
+		if not parsed.has(parsed_name):
+			parsed[parsed_name] = 0
+		parsed[parsed_name] += count
+	return parsed
+
+func _now_day_hour_string() -> String:
+	var d = Time.get_datetime_dict_from_system()
+	return "%04d-%02d-%02d %02d:%02d" % [
+		int(d.get("year", 0)),
+		int(d.get("month", 0)),
+		int(d.get("day", 0)),
+		int(d.get("hour", 0)),
+		int(d.get("minute", 0))
+	]
+
 func _resolve_writable_results_dir() -> String:
-	var preferred_dir = results_csv_path.get_base_dir()
-	if not DirAccess.dir_exists_absolute(preferred_dir):
-		DirAccess.make_dir_recursive_absolute(preferred_dir)
+	# Prefer mini_test/results for exported MVP runs when possible.
+	var candidates: Array[String] = []
+	if OS.has_feature("editor"):
+		candidates.append("res://results")
+	else:
+		var exe_dir = OS.get_executable_path().get_base_dir()
+		candidates.append(exe_dir.path_join("../results").simplify_path())
+		candidates.append(exe_dir.path_join("results").simplify_path())
 
-	var probe_path = preferred_dir + "/.write_probe.tmp"
-	var probe = FileAccess.open(probe_path, FileAccess.WRITE)
-	if probe != null:
-		probe.store_line("ok")
-		probe = null
-		DirAccess.remove_absolute(probe_path)
-		return preferred_dir
+	# Keep configured path + user fallback as final options.
+	candidates.append(results_csv_path.get_base_dir())
+	candidates.append("user://results")
 
-	var fallback_dir = "user://results"
-	if not DirAccess.dir_exists_absolute(fallback_dir):
-		DirAccess.make_dir_recursive_absolute(fallback_dir)
-	return fallback_dir
+	for candidate in candidates:
+		if candidate == "":
+			continue
+		if not DirAccess.dir_exists_absolute(candidate):
+			DirAccess.make_dir_recursive_absolute(candidate)
+		var probe_path = candidate.path_join(".write_probe.tmp")
+		var probe = FileAccess.open(probe_path, FileAccess.WRITE)
+		if probe != null:
+			probe.store_line("ok")
+			probe = null
+			DirAccess.remove_absolute(probe_path)
+			return candidate
+
+	return "user://results"
 
 func _resolve_existing_results_file_path(primary_path: String) -> String:
+	# Read priority: primary path -> user://results -> legacy res://results.
 	if FileAccess.open(primary_path, FileAccess.READ) != null:
 		return primary_path
 
@@ -765,6 +822,7 @@ func _resolve_results_csv_for_read() -> String:
 	return _resolve_existing_results_file_path(results_csv_path)
 
 func _load_historical_totals_from_results() -> Dictionary:
+	# Aggregate all-time miles/laps from previously written results.csv.
 	var totals: Dictionary = {}
 	var read_path = _resolve_results_csv_for_read()
 	var file = FileAccess.open(read_path, FileAccess.READ)
@@ -838,63 +896,220 @@ func _save_top_3_lurker_images(top_place_users: Dictionary) -> void:
 		if save_err != OK:
 			push_error("Failed to save top place image: " + output_path)
 
+func _write_latest_place_files(results_dir: String, sorted_rows: Array) -> void:
+	var place_files = ["1st_place.txt", "2nd_place.txt", "3rd_place.txt"]
+	for i in range(place_files.size()):
+		var place_path = results_dir + "/" + place_files[i]
+		var place_file = FileAccess.open(place_path, FileAccess.WRITE)
+		if place_file == null:
+			push_error("Failed to create place file: " + place_path)
+			continue
+
+		if i < sorted_rows.size():
+			var row = sorted_rows[i]
+			var username = str(row["username"])
+			var rival = _get_top_attacker_for_user(username)
+			var bully = _get_top_victim_for_user(username)
+			place_file.store_line(username)
+			place_file.store_line("Place: " + str(row["place"]))
+			place_file.store_line("Points: " + str(row["laps"]))
+			place_file.store_line("Rival: " + rival)
+			place_file.store_line("Bully: " + bully)
+		else:
+			place_file.store_line("N/A")
+			place_file.store_line("Place: N/A")
+			place_file.store_line("Points: 0")
+			place_file.store_line("Rival: N/A")
+			place_file.store_line("Bully: N/A")
+
+func _get_top_attacker_for_user(username: String) -> String:
+	if not attacker_details.has(username):
+		return "N/A"
+	var combined: Dictionary = {}
+	for trap_type in attacker_details[username].keys():
+		var per_attacker = attacker_details[username][trap_type]
+		for attacker in per_attacker.keys():
+			if not combined.has(attacker):
+				combined[attacker] = 0
+			combined[attacker] += int(per_attacker[attacker])
+	if combined.is_empty():
+		return "N/A"
+	var top_name = "N/A"
+	var top_count = -1
+	for attacker_name in combined.keys():
+		var count = int(combined[attacker_name])
+		if count > top_count:
+			top_count = count
+			top_name = str(attacker_name)
+	return top_name
+
+func _get_top_victim_for_user(username: String) -> String:
+	if not victim_details.has(username):
+		return "N/A"
+	var combined: Dictionary = {}
+	for trap_type in victim_details[username].keys():
+		var per_victim = victim_details[username][trap_type]
+		for victim in per_victim.keys():
+			if not combined.has(victim):
+				combined[victim] = 0
+			combined[victim] += int(per_victim[victim])
+	if combined.is_empty():
+		return "N/A"
+	var top_name = "N/A"
+	var top_count = -1
+	for victim_name in combined.keys():
+		var count = int(combined[victim_name])
+		if count > top_count:
+			top_count = count
+			top_name = str(victim_name)
+	return top_name
+
+func _append_or_accumulate(agg: Dictionary, row: Dictionary) -> void:
+	# Merge one row into per-user historical totals.
+	var username = str(row.get("username", "")).strip_edges().to_lower()
+	if username == "":
+		return
+	if not agg.has(username):
+		agg[username] = {
+			"timestamp": str(row.get("timestamp", "")),
+			"username": username,
+			"place": 0,
+			"miles": 0.0,
+			"laps": 0,
+			"races_joined": 0,
+			"rejoin_count": 0,
+			"leave_count": 0,
+			"ban_count": 0,
+			"1st_place_count": 0,
+			"2nd_place_count": 0,
+			"3rd_place_count": 0,
+			"yellow_victims_map": {},
+			"red_victims_map": {},
+			"yellow_attackers_map": {},
+			"red_attackers_map": {}
+		}
+
+	var dst = agg[username]
+	dst["timestamp"] = str(row.get("timestamp", dst["timestamp"]))
+	dst["miles"] += float(row.get("miles", 0.0))
+	dst["laps"] += int(row.get("laps", 0))
+	dst["races_joined"] += int(row.get("races_joined", 0))
+	dst["rejoin_count"] += int(row.get("rejoin_count", 0))
+	dst["leave_count"] += int(row.get("leave_count", 0))
+	dst["ban_count"] += int(row.get("ban_count", 0))
+
+	var place = int(row.get("place", 0))
+	if place == 1:
+		dst["1st_place_count"] += 1
+	elif place == 2:
+		dst["2nd_place_count"] += 1
+	elif place == 3:
+		dst["3rd_place_count"] += 1
+
+	# Merge trap interaction summaries into all-time dictionaries.
+	for k in _parse_ranked_list(str(row.get("yellow_victims", ""))).keys():
+		var m = dst["yellow_victims_map"]
+		m[k] = int(m.get(k, 0)) + int(_parse_ranked_list(str(row.get("yellow_victims", ""))).get(k, 0))
+	for k in _parse_ranked_list(str(row.get("red_victims", ""))).keys():
+		var m2 = dst["red_victims_map"]
+		m2[k] = int(m2.get(k, 0)) + int(_parse_ranked_list(str(row.get("red_victims", ""))).get(k, 0))
+	for k in _parse_ranked_list(str(row.get("yellow_attackers", ""))).keys():
+		var m3 = dst["yellow_attackers_map"]
+		m3[k] = int(m3.get(k, 0)) + int(_parse_ranked_list(str(row.get("yellow_attackers", ""))).get(k, 0))
+	for k in _parse_ranked_list(str(row.get("red_attackers", ""))).keys():
+		var m4 = dst["red_attackers_map"]
+		m4[k] = int(m4.get(k, 0)) + int(_parse_ranked_list(str(row.get("red_attackers", ""))).get(k, 0))
+
+func _row_to_csv_line(row: Dictionary) -> String:
+	var escape_csv = func(s: String) -> String:
+		s = s.replace("\"", "\"\"")
+		return "\"" + s + "\""
+	var line = str(row.get("timestamp", "")) + ","
+	line += str(row.get("username", "")) + ","
+	line += str(row.get("place", 0)) + ","
+	line += str(row.get("miles", "0")) + ","
+	line += str(row.get("laps", 0)) + ","
+	line += str(row.get("races_joined", 0)) + ","
+	line += str(row.get("rejoin_count", 0)) + ","
+	line += str(row.get("leave_count", 0)) + ","
+	line += str(row.get("ban_count", 0)) + ","
+	line += str(row.get("1st_place_count", 0)) + ","
+	line += str(row.get("2nd_place_count", 0)) + ","
+	line += str(row.get("3rd_place_count", 0)) + ","
+	line += escape_csv.call(str(row.get("yellow_victims", ""))) + ","
+	line += escape_csv.call(str(row.get("red_victims", ""))) + ","
+	line += escape_csv.call(str(row.get("yellow_attackers", ""))) + ","
+	line += escape_csv.call(str(row.get("red_attackers", "")) )
+	return line
+
 func create_result() -> void:
-	var historical_totals = _load_historical_totals_from_results()
+	# Rebuild results.csv with two sections:
+	# 1) Latest run top-3 racers.
+	# 2) Historical cumulative totals for all racers up to now.
+	_update_rankings()
 	var top_place_users: Dictionary = {}
 	var results_dir = _resolve_writable_results_dir()
 	results_csv_path = results_dir + "/results.csv"
-	var result_1_path = results_dir + "/result_1.txt"
-	var result_2_path = results_dir + "/result_2.txt"
-	var result_3_path = results_dir + "/result_3.txt"
-	var result_view_1_path = results_dir + "/result_view_1.txt"
-	var result_view_2_path = results_dir + "/result_view_2.txt"
-	var result_view_3_path = results_dir + "/result_view_3.txt"
+	var csv_header = "timestamp,username,place,miles,laps,races_joined,rejoin_count,leave_count,ban_count,1st_place_count,2nd_place_count,3rd_place_count,yellow_victims,red_victims,yellow_attackers,red_attackers"
 
-	# Initialize results CSV if it doesn't exist
-	var file = FileAccess.open(results_csv_path, FileAccess.READ)
+	# Read existing CSV rows so they can be folded into cumulative totals.
+	var historical_rows: Array = []
+	var existing_path = _resolve_results_csv_for_read()
+	var existing_file = FileAccess.open(existing_path, FileAccess.READ)
+	if existing_file != null:
+		if not existing_file.eof_reached():
+			existing_file.get_line()
+		while not existing_file.eof_reached():
+			var old_line = existing_file.get_line()
+			if old_line.strip_edges() == "":
+				continue
+			var p = old_line.split(",")
+			if p.size() < 16:
+				continue
+			historical_rows.append({
+				"timestamp": p[0],
+				"username": p[1],
+				"place": int(p[2]),
+				"miles": float(p[3]),
+				"laps": int(p[4]),
+				"races_joined": int(p[5]),
+				"rejoin_count": int(p[6]),
+				"leave_count": int(p[7]),
+				"ban_count": int(p[8]),
+				"1st_place_count": int(p[9]),
+				"2nd_place_count": int(p[10]),
+				"3rd_place_count": int(p[11]),
+				"yellow_victims": p[12].trim_prefix("\"").trim_suffix("\""),
+				"red_victims": p[13].trim_prefix("\"").trim_suffix("\""),
+				"yellow_attackers": p[14].trim_prefix("\"").trim_suffix("\""),
+				"red_attackers": p[15].trim_prefix("\"").trim_suffix("\"")
+			})
+
+	# Fresh rewrite preserves deterministic section order every !result call.
+	var file = FileAccess.open(results_csv_path, FileAccess.WRITE)
 	if file == null:
-		file = FileAccess.open(results_csv_path, FileAccess.WRITE)
-		if file == null:
-			push_error("Failed to create results.csv")
-			return
-		file.store_line("timestamp,username,place,miles,laps,races_joined,rejoin_count,leave_count,ban_count,1st_place_count,2nd_place_count,3rd_place_count,yellow_victims,red_victims,yellow_attackers,red_attackers")
-	
-	# Create result row for each player
-	file = FileAccess.open(results_csv_path, FileAccess.READ_WRITE)
-	if file == null:
-		push_error("Failed to open results.csv")
+		push_error("Failed to create/open results.csv")
 		return
-	
-	file.seek_end()
-	
-	var timestamp = Time.get_ticks_msec()
-	
-	# Create the 3 result text files
-	var result_1_file = FileAccess.open(result_1_path, FileAccess.WRITE)
-	var result_2_file = FileAccess.open(result_2_path, FileAccess.WRITE)
-	var result_3_file = FileAccess.open(result_3_path, FileAccess.WRITE)
-	var result_view_1_file = FileAccess.open(result_view_1_path, FileAccess.WRITE)
-	var result_view_2_file = FileAccess.open(result_view_2_path, FileAccess.WRITE)
-	var result_view_3_file = FileAccess.open(result_view_3_path, FileAccess.WRITE)
-	
-	if result_1_file == null or result_2_file == null or result_3_file == null or result_view_1_file == null or result_view_2_file == null or result_view_3_file == null:
-		push_error("Failed to create result txt files")
-		return
-	
-	# Write headers to txt files
-	result_1_file.store_line("=== 1ST PLACE ===")
-	result_2_file.store_line("=== 2ND PLACE ===")
-	result_3_file.store_line("=== 3RD PLACE ===")
+
+	file.store_line(csv_header)
+
+	var timestamp = _now_day_hour_string()
+	var current_rows: Array = []
+	var aggregate_by_user: Dictionary = {}
+
+	# Seed aggregate totals from prior CSV rows.
+	for old_row in historical_rows:
+		_append_or_accumulate(aggregate_by_user, old_row)
 	
 	for user_name in lurkers.keys():
 		# Skip broadcaster from results
-		if user_name.to_lower() == BROADCASTER_USERNAME:
+		if user_name.to_lower() == _get_broadcaster_login():
 			continue
 		
 		var snapshot = _get_lurker_snapshot(user_name)
 		var place = snapshot["place"]
 		
-		# Ensure placement counts exist
+		# Ensure cumulative placement counters exist before incrementing.
 		if not placement_counts.has(user_name):
 			placement_counts[user_name] = {"1st": 0, "2nd": 0, "3rd": 0}
 		
@@ -923,62 +1138,72 @@ func create_result() -> void:
 		var red_vict_list = _build_ranked_list(red_vict)
 		var yellow_att_list = _build_ranked_list(yellow_att)
 		var red_att_list = _build_ranked_list(red_att)
-		
-		# Escape quotes for CSV (no newline wrapping)
-		var escape_csv = func(s: String) -> String:
-			s = s.replace("\"", "\"\"")
-			return "\"" + s + "\""
-		
-		# Build CSV line with placement counts
-		var line = str(timestamp) + "," + user_name + "," + str(place) + "," + snapshot["miles"] + "," + str(snapshot["laps"]) + "," + str(snapshot["races_joined"]) + "," + str(snapshot["rejoin_count"]) + "," + str(snapshot["leave_count"]) + "," + str(snapshot["ban_count"]) + ","
-		line += str(placement_counts[user_name]["1st"]) + ","
-		line += str(placement_counts[user_name]["2nd"]) + ","
-		line += str(placement_counts[user_name]["3rd"]) + ","
-		line += escape_csv.call(yellow_vict_list) + ","
-		line += escape_csv.call(red_vict_list) + ","
-		line += escape_csv.call(yellow_att_list) + ","
-		line += escape_csv.call(red_att_list)
-		
-		file.store_line(line)
-		
-		# Write to appropriate result txt file
-		var txt_content = "Player: " + user_name + "\n"
-		txt_content += "Miles: " + snapshot["miles"] + "\n"
-		txt_content += "Laps: " + str(snapshot["laps"]) + "\n"
-		txt_content += "Races Joined: " + str(snapshot["races_joined"]) + "\n"
-		txt_content += "Rejoin Count: " + str(snapshot["rejoin_count"]) + "\n"
-		txt_content += "Leave Count: " + str(snapshot["leave_count"]) + "\n"
-		txt_content += "Ban Count: " + str(snapshot["ban_count"]) + "\n"
-		txt_content += "1st Place Finishes: " + str(placement_counts[user_name]["1st"]) + "\n"
-		txt_content += "2nd Place Finishes: " + str(placement_counts[user_name]["2nd"]) + "\n"
-		txt_content += "3rd Place Finishes: " + str(placement_counts[user_name]["3rd"]) + "\n"
-		txt_content += "Yellow Traps Hit: " + str(snapshot["yellow_hits"]) + "\n"
-		txt_content += "Red Traps Hit: " + str(snapshot["red_hits"]) + "\n"
-		txt_content += "Yellow Traps Thrown: " + str(snapshot["yellow_throws"]) + "\n"
-		txt_content += "Red Traps Thrown: " + str(snapshot["red_throws"]) + "\n"
-		txt_content += "\n"
 
-		var user_history = historical_totals.get(user_name, {"miles": 0.0, "laps": 0})
-		var all_time_miles = float(user_history.get("miles", 0.0)) + float(snapshot["miles"])
-		var all_time_laps = int(user_history.get("laps", 0)) + int(snapshot["laps"])
-		
-		# Write to appropriate file based on placement
-		if place == 1:
-			result_1_file.store_line(txt_content)
-			_write_result_view_file(result_view_1_file, snapshot, all_time_miles, all_time_laps, placement_counts[user_name])
-		elif place == 2:
-			result_2_file.store_line(txt_content)
-			_write_result_view_file(result_view_2_file, snapshot, all_time_miles, all_time_laps, placement_counts[user_name])
-		elif place == 3:
-			result_3_file.store_line(txt_content)
-			_write_result_view_file(result_view_3_file, snapshot, all_time_miles, all_time_laps, placement_counts[user_name])
+		var row = {
+			"timestamp": timestamp,
+			"username": user_name,
+			"place": place,
+			"miles": snapshot["miles"],
+			"laps": snapshot["laps"],
+			"races_joined": snapshot["races_joined"],
+			"rejoin_count": snapshot["rejoin_count"],
+			"leave_count": snapshot["leave_count"],
+			"ban_count": snapshot["ban_count"],
+			"1st_place_count": placement_counts[user_name]["1st"],
+			"2nd_place_count": placement_counts[user_name]["2nd"],
+			"3rd_place_count": placement_counts[user_name]["3rd"],
+			"yellow_victims": yellow_vict_list,
+			"red_victims": red_vict_list,
+			"yellow_attackers": yellow_att_list,
+			"red_attackers": red_att_list
+		}
+
+		current_rows.append(row)
+		_append_or_accumulate(aggregate_by_user, row)
+
+	# Keep first section strictly to latest top 3 from current run.
+	current_rows.sort_custom(func(a, b): return int(a["place"]) < int(b["place"]))
+	for i in range(min(3, current_rows.size())):
+		top_place_users[i + 1] = current_rows[i]["username"]
+		file.store_line(_row_to_csv_line(current_rows[i]))
+
+	# Section separator + second header for cumulative historical view.
+	file.store_line("")
+	file.store_line(csv_header)
+
+	var aggregated_rows: Array = []
+	for uname in aggregate_by_user.keys():
+		var a = aggregate_by_user[uname]
+		aggregated_rows.append({
+			"timestamp": timestamp,
+			"username": uname,
+			"place": 0,
+			"miles": String.num(float(a["miles"]), 2),
+			"laps": int(a["laps"]),
+			"races_joined": int(a["races_joined"]),
+			"rejoin_count": int(a["rejoin_count"]),
+			"leave_count": int(a["leave_count"]),
+			"ban_count": int(a["ban_count"]),
+			"1st_place_count": int(a["1st_place_count"]),
+			"2nd_place_count": int(a["2nd_place_count"]),
+			"3rd_place_count": int(a["3rd_place_count"]),
+			"yellow_victims": _build_ranked_list(a["yellow_victims_map"]),
+			"red_victims": _build_ranked_list(a["red_victims_map"]),
+			"yellow_attackers": _build_ranked_list(a["yellow_attackers_map"]),
+			"red_attackers": _build_ranked_list(a["red_attackers_map"])
+		})
+
+	aggregated_rows.sort_custom(func(a, b): return float(a["miles"]) > float(b["miles"]))
+	for row in aggregated_rows:
+		file.store_line(_row_to_csv_line(row))
+
+	_write_latest_place_files(results_dir, current_rows)
 
 	_save_top_3_lurker_images(top_place_users)
 	
 	last_result_timestamp = Time.get_ticks_msec()
-	var message = "Results saved in " + results_dir + " | files: result_1/2/3 + result_view_1/2/3"
-	print(message)
-	event_stream.system_message.emit(message)
+	print("Results saved in ", results_dir, " (", ProjectSettings.globalize_path(results_dir), ")")
+	event_stream.system_message.emit("Results updated.")
 
 func should_auto_save_on_close() -> bool:
 	var time_since_result = Time.get_ticks_msec() - last_result_timestamp

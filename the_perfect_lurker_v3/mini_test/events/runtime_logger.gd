@@ -1,4 +1,4 @@
-yupextends Node
+extends Node
 class_name RuntimeLogger
 
 @export var event_stream: NodePath
@@ -63,7 +63,7 @@ func _connect_backend_signals() -> void:
 		_safe_connect(twitch_node, "events_unavailable", func(): _log("TWITCH", "events_unavailable", null))
 		_safe_connect(twitch_node, "user_token_valid", func(): _log("TOKEN", "user_token_valid", null))
 		_safe_connect(twitch_node, "user_token_invalid", func(): _log("TOKEN", "user_token_invalid", null))
-		_safe_connect(twitch_node, "token_refresh_status", func(status, details): _log("TOKEN_REFRESH", status, details))
+		_safe_connect(twitch_node, "token_refresh_status", func(status, details): _log_token_refresh_status(status, details))
 		_safe_connect(twitch_node, "login_attempt", func(success): _log("TWITCH", "login_attempt", {"success": success}))
 		_safe_connect(twitch_node, "chat_message", func(sender_data, message): _log("CHAT_IN", "chat_message", {"user": sender_data.user, "message": message}))
 		_safe_connect(twitch_node, "event", func(event_type, data): _log("EVENTSUB", "event", {"type": event_type, "keys": data.keys()}))
@@ -92,3 +92,16 @@ func _safe_connect(emitter: Object, signal_name: String, callback: Callable) -> 
 	var err = emitter.connect(signal_name, callback)
 	if err != OK and err != ERR_ALREADY_IN_USE:
 		_log("WARN", "failed to connect signal", {"signal": signal_name, "error": err})
+
+func _log_token_refresh_status(status: String, details: Variant = null) -> void:
+	var level := "TOKEN_REFRESH"
+	match status:
+		"success", "loop_started":
+			level = "INFO"
+		"attempting", "tick", "retry_scheduled":
+			level = "WARN"
+		"attempt_failed", "fatal":
+			level = "ERROR"
+		_:
+			level = "TOKEN_REFRESH"
+	_log(level, "token_refresh_" + status, details)
