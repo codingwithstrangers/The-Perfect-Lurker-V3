@@ -993,6 +993,54 @@ func _get_top_victim_for_user(username: String) -> String:
 			top_name = str(victim_name)
 	return top_name
 
+func _sum_count_map(values: Dictionary) -> int:
+	var total := 0
+	for k in values.keys():
+		total += int(values[k])
+	return total
+
+func _merge_shield_hit_targets(attacker_name: String) -> Dictionary:
+	var merged: Dictionary = {}
+	if not shield_hit_details.has(attacker_name):
+		return merged
+	for trap_type in shield_hit_details[attacker_name].keys():
+		var victims = shield_hit_details[attacker_name][trap_type]
+		for victim in victims.keys():
+			merged[victim] = int(merged.get(victim, 0)) + int(victims[victim])
+	return merged
+
+func _shield_fail_by_for_user(username: String) -> Dictionary:
+	# Inverse view of shield_breaker_details: who broke this user's final shields.
+	var broken_by: Dictionary = {}
+	for attacker in shield_breaker_details.keys():
+		var victims = shield_breaker_details[attacker]
+		if victims.has(username):
+			broken_by[attacker] = int(broken_by.get(attacker, 0)) + int(victims[username])
+	return broken_by
+
+func _split_csv_line(line: String) -> Array[String]:
+	# Minimal CSV parser supporting quoted fields with commas and escaped quotes.
+	var out: Array[String] = []
+	var current := ""
+	var in_quotes := false
+	var i := 0
+	while i < line.length():
+		var ch := line[i]
+		if ch == '"':
+			if in_quotes and i + 1 < line.length() and line[i + 1] == '"':
+				current += '"'
+				i += 1
+			else:
+				in_quotes = not in_quotes
+		elif ch == "," and not in_quotes:
+			out.append(current)
+			current = ""
+		else:
+			current += ch
+		i += 1
+	out.append(current)
+	return out
+
 func _append_or_accumulate(agg: Dictionary, row: Dictionary) -> void:
 	# Merge one row into per-user historical totals.
 	var username = str(row.get("username", "")).strip_edges().to_lower()
@@ -1012,10 +1060,18 @@ func _append_or_accumulate(agg: Dictionary, row: Dictionary) -> void:
 			"1st_place_count": 0,
 			"2nd_place_count": 0,
 			"3rd_place_count": 0,
+			"shield_hit_count": 0,
+			"shield_defense_count": 0,
+			"shield_breaker_count": 0,
+			"shield_fail_count": 0,
 			"yellow_victims_map": {},
 			"red_victims_map": {},
 			"yellow_attackers_map": {},
-			"red_attackers_map": {}
+			"red_attackers_map": {},
+			"shield_hit_map": {},
+			"shield_defense_map": {},
+			"shield_breaker_map": {},
+			"shield_fail_map": {}
 		}
 
 	var dst = agg[username]
@@ -1026,6 +1082,10 @@ func _append_or_accumulate(agg: Dictionary, row: Dictionary) -> void:
 	dst["rejoin_count"] += int(row.get("rejoin_count", 0))
 	dst["leave_count"] += int(row.get("leave_count", 0))
 	dst["ban_count"] += int(row.get("ban_count", 0))
+	dst["shield_hit_count"] += int(row.get("shield_hit_count", 0))
+	dst["shield_defense_count"] += int(row.get("shield_defense_count", 0))
+	dst["shield_breaker_count"] += int(row.get("shield_breaker_count", 0))
+	dst["shield_fail_count"] += int(row.get("shield_fail_count", 0))
 
 	var place = int(row.get("place", 0))
 	if place == 1:
@@ -1048,6 +1108,18 @@ func _append_or_accumulate(agg: Dictionary, row: Dictionary) -> void:
 	for k in _parse_ranked_list(str(row.get("red_attackers", ""))).keys():
 		var m4 = dst["red_attackers_map"]
 		m4[k] = int(m4.get(k, 0)) + int(_parse_ranked_list(str(row.get("red_attackers", ""))).get(k, 0))
+	for k in _parse_ranked_list(str(row.get("shield_hit_targets", ""))).keys():
+		var m5 = dst["shield_hit_map"]
+		m5[k] = int(m5.get(k, 0)) + int(_parse_ranked_list(str(row.get("shield_hit_targets", ""))).get(k, 0))
+	for k in _parse_ranked_list(str(row.get("shield_defense_by", ""))).keys():
+		var m6 = dst["shield_defense_map"]
+		m6[k] = int(m6.get(k, 0)) + int(_parse_ranked_list(str(row.get("shield_defense_by", ""))).get(k, 0))
+	for k in _parse_ranked_list(str(row.get("shield_breaker_targets", ""))).keys():
+		var m7 = dst["shield_breaker_map"]
+		m7[k] = int(m7.get(k, 0)) + int(_parse_ranked_list(str(row.get("shield_breaker_targets", ""))).get(k, 0))
+	for k in _parse_ranked_list(str(row.get("shield_fail_by", ""))).keys():
+		var m8 = dst["shield_fail_map"]
+		m8[k] = int(m8.get(k, 0)) + int(_parse_ranked_list(str(row.get("shield_fail_by", ""))).get(k, 0))
 
 func _row_to_csv_line(row: Dictionary) -> String:
 	var escape_csv = func(s: String) -> String:
@@ -1065,6 +1137,14 @@ func _row_to_csv_line(row: Dictionary) -> String:
 	line += str(row.get("1st_place_count", 0)) + ","
 	line += str(row.get("2nd_place_count", 0)) + ","
 	line += str(row.get("3rd_place_count", 0)) + ","
+	line += str(row.get("shield_hit_count", 0)) + ","
+	line += escape_csv.call(str(row.get("shield_hit_targets", ""))) + ","
+	line += str(row.get("shield_defense_count", 0)) + ","
+	line += escape_csv.call(str(row.get("shield_defense_by", ""))) + ","
+	line += str(row.get("shield_breaker_count", 0)) + ","
+	line += escape_csv.call(str(row.get("shield_breaker_targets", ""))) + ","
+	line += str(row.get("shield_fail_count", 0)) + ","
+	line += escape_csv.call(str(row.get("shield_fail_by", ""))) + ","
 	line += escape_csv.call(str(row.get("yellow_victims", ""))) + ","
 	line += escape_csv.call(str(row.get("red_victims", ""))) + ","
 	line += escape_csv.call(str(row.get("yellow_attackers", ""))) + ","
@@ -1079,7 +1159,7 @@ func create_result() -> void:
 	var top_place_users: Dictionary = {}
 	var results_dir = _resolve_writable_results_dir()
 	results_csv_path = results_dir + "/results.csv"
-	var csv_header = "timestamp,username,place,miles,laps,races_joined,rejoin_count,leave_count,ban_count,1st_place_count,2nd_place_count,3rd_place_count,yellow_victims,red_victims,yellow_attackers,red_attackers"
+	var csv_header = "timestamp,username,place,miles,laps,races_joined,rejoin_count,leave_count,ban_count,1st_place_count,2nd_place_count,3rd_place_count,shield_hit_count,shield_hit_targets,shield_defense_count,shield_defense_by,shield_breaker_count,shield_breaker_targets,shield_fail_count,shield_fail_by,yellow_victims,red_victims,yellow_attackers,red_attackers"
 
 	# Read existing CSV rows so they can be folded into cumulative totals.
 	var historical_rows: Array = []
@@ -1092,9 +1172,10 @@ func create_result() -> void:
 			var old_line = existing_file.get_line()
 			if old_line.strip_edges() == "":
 				continue
-			var p = old_line.split(",")
+			var p = _split_csv_line(old_line)
 			if p.size() < 16:
 				continue
+			var has_shield_cols = p.size() >= 24
 			historical_rows.append({
 				"timestamp": p[0],
 				"username": p[1],
@@ -1108,10 +1189,18 @@ func create_result() -> void:
 				"1st_place_count": int(p[9]),
 				"2nd_place_count": int(p[10]),
 				"3rd_place_count": int(p[11]),
-				"yellow_victims": p[12].trim_prefix("\"").trim_suffix("\""),
-				"red_victims": p[13].trim_prefix("\"").trim_suffix("\""),
-				"yellow_attackers": p[14].trim_prefix("\"").trim_suffix("\""),
-				"red_attackers": p[15].trim_prefix("\"").trim_suffix("\"")
+				"shield_hit_count": int(p[12]) if has_shield_cols else 0,
+				"shield_hit_targets": p[13] if has_shield_cols else "",
+				"shield_defense_count": int(p[14]) if has_shield_cols else 0,
+				"shield_defense_by": p[15] if has_shield_cols else "",
+				"shield_breaker_count": int(p[16]) if has_shield_cols else 0,
+				"shield_breaker_targets": p[17] if has_shield_cols else "",
+				"shield_fail_count": int(p[18]) if has_shield_cols else 0,
+				"shield_fail_by": p[19] if has_shield_cols else "",
+				"yellow_victims": p[20] if has_shield_cols else p[12],
+				"red_victims": p[21] if has_shield_cols else p[13],
+				"yellow_attackers": p[22] if has_shield_cols else p[14],
+				"red_attackers": p[23] if has_shield_cols else p[15]
 			})
 
 	# Fresh rewrite preserves deterministic section order every !result call.
@@ -1167,6 +1256,10 @@ func create_result() -> void:
 		var red_vict_list = _build_ranked_list(red_vict)
 		var yellow_att_list = _build_ranked_list(yellow_att)
 		var red_att_list = _build_ranked_list(red_att)
+		var shield_hit_targets = _merge_shield_hit_targets(user_name)
+		var shield_defense_by = shield_hits_on_user.get(user_name, {})
+		var shield_breaker_targets = shield_breaker_details.get(user_name, {})
+		var shield_fail_by = _shield_fail_by_for_user(user_name)
 
 		var row = {
 			"timestamp": timestamp,
@@ -1181,6 +1274,14 @@ func create_result() -> void:
 			"1st_place_count": placement_counts[user_name]["1st"],
 			"2nd_place_count": placement_counts[user_name]["2nd"],
 			"3rd_place_count": placement_counts[user_name]["3rd"],
+			"shield_hit_count": _sum_count_map(shield_hit_targets),
+			"shield_hit_targets": _build_ranked_list(shield_hit_targets),
+			"shield_defense_count": _sum_count_map(shield_defense_by),
+			"shield_defense_by": _build_ranked_list(shield_defense_by),
+			"shield_breaker_count": _sum_count_map(shield_breaker_targets),
+			"shield_breaker_targets": _build_ranked_list(shield_breaker_targets),
+			"shield_fail_count": _sum_count_map(shield_fail_by),
+			"shield_fail_by": _build_ranked_list(shield_fail_by),
 			"yellow_victims": yellow_vict_list,
 			"red_victims": red_vict_list,
 			"yellow_attackers": yellow_att_list,
@@ -1216,6 +1317,14 @@ func create_result() -> void:
 			"1st_place_count": int(a["1st_place_count"]),
 			"2nd_place_count": int(a["2nd_place_count"]),
 			"3rd_place_count": int(a["3rd_place_count"]),
+			"shield_hit_count": int(a["shield_hit_count"]),
+			"shield_hit_targets": _build_ranked_list(a["shield_hit_map"]),
+			"shield_defense_count": int(a["shield_defense_count"]),
+			"shield_defense_by": _build_ranked_list(a["shield_defense_map"]),
+			"shield_breaker_count": int(a["shield_breaker_count"]),
+			"shield_breaker_targets": _build_ranked_list(a["shield_breaker_map"]),
+			"shield_fail_count": int(a["shield_fail_count"]),
+			"shield_fail_by": _build_ranked_list(a["shield_fail_map"]),
 			"yellow_victims": _build_ranked_list(a["yellow_victims_map"]),
 			"red_victims": _build_ranked_list(a["red_victims_map"]),
 			"yellow_attackers": _build_ranked_list(a["yellow_attackers_map"]),
