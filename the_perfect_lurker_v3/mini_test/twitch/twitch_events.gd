@@ -37,6 +37,7 @@ const CHAT_NAMES_SNAPSHOT_PATH := "user://results/chat_names.txt"
 var active_chat_users: Dictionary = {}
 var names_snapshot_users: Dictionary = {}
 var names_refresh_in_progress: bool = false
+var names_command_supported: bool = true
 
 func _ready() -> void:
 	event_stream.send_chat.connect(chat)
@@ -271,6 +272,8 @@ func _write_chat_names_snapshot_file() -> void:
 func _request_chat_names_refresh() -> void:
 	if login_channel == "":
 		return
+	if not names_command_supported:
+		return
 	if websocket == null or websocket.get_ready_state() != WebSocketPeer.STATE_OPEN or not connected:
 		_schedule_reconnect("IRC not connected for NAMES refresh")
 		return
@@ -294,6 +297,15 @@ func _on_unhandled_irc_message(message: String, _tags: Dictionary) -> void:
 		var target_users = names_snapshot_users if names_refresh_in_progress else active_chat_users
 		for user_name in _extract_names_users(message):
 			target_users[user_name] = true
+		return
+
+	# Some Twitch IRC setups reject NAMES with 421 Unknown command.
+	# If that happens, disable periodic NAMES refresh and rely on JOIN/PART + chat activity.
+	if " 421 " in message and " NAMES " in message:
+		names_command_supported = false
+		names_refresh_in_progress = false
+		if OS.is_debug_build():
+			print("[CHAT_SOT] NAMES unsupported by server; using JOIN/PART presence fallback")
 		return
 
 	# End of NAMES list
@@ -337,6 +349,8 @@ func _sync_lurkers_with_chat_presence() -> void:
 	
 func on_chat(sender_data: SenderData, msg: String) -> void:
 	var user_key = sender_data.user.to_lower()
+	# Chat activity is authoritative evidence user is present in channel.
+	_set_chat_user_presence(user_key, true, "CHAT")
 	if _is_channel_point_message(sender_data):
 		if OS.is_debug_build():
 			var reward_id = str(sender_data.tags.get("custom-reward-id", ""))

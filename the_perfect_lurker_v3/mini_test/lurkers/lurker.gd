@@ -235,6 +235,8 @@ func leave_pit():
 	target_speed = 0.0
 	
 func enter_pit():
+	if state == RaceState.InThePit or state == RaceState.Pitting:
+		return
 	print(username, " has entered the pit")
 	# Shields reset on pit entry
 	clear_shield()

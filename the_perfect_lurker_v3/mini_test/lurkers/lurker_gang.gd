@@ -683,6 +683,12 @@ func get_top_3_lurkers() -> Array:
 func create_snapshot() -> void:
 	var top_3 = get_top_3_lurkers()
 	var summary_parts = []
+	var broadcaster_login = _get_broadcaster_login()
+	var broadcaster_user_name = ""
+	for racer_name in lurkers.keys():
+		if racer_name.to_lower() == broadcaster_login:
+			broadcaster_user_name = racer_name
+			break
 	
 	for i in range(top_3.size()):
 		var username = top_3[i]
@@ -708,6 +714,29 @@ func create_snapshot() -> void:
 		file.store_line("Red Traps Hit: %d" % snapshot["red_hits"])
 		file.store_line("Yellow Traps Thrown: %d" % snapshot["yellow_throws"])
 		file.store_line("Red Traps Thrown: %d" % snapshot["red_throws"])
+
+	# Host should be visible in snapshots, but never ranked/crowned as top-3.
+	if broadcaster_user_name != "":
+		var host_snapshot = _get_lurker_snapshot(broadcaster_user_name)
+		summary_parts.append("Host %s L%d M%s" % [host_snapshot["username"], host_snapshot["laps"], host_snapshot["miles"]])
+		var host_filename = "user://lurker_host.txt"
+		var host_file = FileAccess.open(host_filename, FileAccess.WRITE)
+		if host_file == null:
+			push_error("Failed to create host snapshot file: ", host_filename)
+		else:
+			host_file.store_line("=== HOST SNAPSHOT ===")
+			host_file.store_line("Username: " + host_snapshot["username"])
+			host_file.store_line("Place: Excluded from ranking")
+			host_file.store_line("Miles: " + host_snapshot["miles"])
+			host_file.store_line("Laps: %d" % host_snapshot["laps"])
+			host_file.store_line("Races Joined: %d" % host_snapshot["races_joined"])
+			host_file.store_line("Rejoin Count: %d" % host_snapshot["rejoin_count"])
+			host_file.store_line("Leave Count: %d" % host_snapshot["leave_count"])
+			host_file.store_line("Ban Count: %d" % host_snapshot["ban_count"])
+			host_file.store_line("Yellow Traps Hit: %d" % host_snapshot["yellow_hits"])
+			host_file.store_line("Red Traps Hit: %d" % host_snapshot["red_hits"])
+			host_file.store_line("Yellow Traps Thrown: %d" % host_snapshot["yellow_throws"])
+			host_file.store_line("Red Traps Thrown: %d" % host_snapshot["red_throws"])
 	
 	var message = "Snapshot: no active racers."
 	if summary_parts.size() > 0:

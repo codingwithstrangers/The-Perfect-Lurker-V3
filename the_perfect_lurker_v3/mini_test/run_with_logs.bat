@@ -101,7 +101,7 @@ echo Running: %EXE_PATH%
 echo Logging to: %LOG_FILE%
 echo ----------------------------------------
 
-powershell -NoProfile -ExecutionPolicy Bypass -Command "& '%EXE_PATH%' 2>&1 | Tee-Object -FilePath '%LOG_FILE%'"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "& '%EXE_PATH%' 2>&1 | ForEach-Object { '[' + (Get-Date -Format 'yyyy-MM-dd HH:mm:ss.fff') + '] ' + $_ } | Tee-Object -FilePath '%LOG_FILE%'"
 set "EXIT_CODE=%ERRORLEVEL%"
 
 echo ----------------------------------------

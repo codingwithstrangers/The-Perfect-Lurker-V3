@@ -29,7 +29,8 @@ func _open_log_file() -> void:
 
 func _log(level: String, message: String, details: Variant = null) -> void:
 	var now = Time.get_datetime_string_from_system()
-	var line = "[" + now + "] [" + level + "] " + message
+	var unix_ms = Time.get_ticks_msec()
+	var line = "[" + now + "] [ms=" + str(unix_ms) + "] [" + level + "] " + message
 	if details != null:
 		line += " | " + str(details)
 	print(line)

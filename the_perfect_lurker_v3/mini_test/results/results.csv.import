@@ -1,0 +1,17 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://jww7vs43mo5k"
+
+[deps]
+
+files=["res://results/results.username.translation", "res://results/results.place.translation", "res://results/results.miles.translation", "res://results/results.laps.translation", "res://results/results.races.translation", "res://results/results.rejoin.translation", "res://results/results.leave.translation", "res://results/results.ban.translation", "res://results/results.1st.translation", "res://results/results.2nd.translation", "res://results/results.3rd.translation", "res://results/results.yellow.translation", "res://results/results.red.translation", "res://results/results.yellow.translation", "res://results/results.red.translation"]
+
+source_file="res://results/results.csv"
+dest_files=["res://results/results.username.translation", "res://results/results.place.translation", "res://results/results.miles.translation", "res://results/results.laps.translation", "res://results/results.races.translation", "res://results/results.rejoin.translation", "res://results/results.leave.translation", "res://results/results.ban.translation", "res://results/results.1st.translation", "res://results/results.2nd.translation", "res://results/results.3rd.translation", "res://results/results.yellow.translation", "res://results/results.red.translation", "res://results/results.yellow.translation", "res://results/results.red.translation"]
+
+[params]
+
+compress=true
+delimiter=0

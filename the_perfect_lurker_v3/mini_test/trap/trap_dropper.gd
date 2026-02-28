@@ -75,9 +75,12 @@ func _place_trap_behind_lurker(trap: TrapControllerV2, lurker: Lurker) -> void:
 
 func _spawn_red_trap(username: String, attacker: Lurker) -> void:
 	var target_id = _get_target_in_front(username)
+	var allow_self_damage = false
 	if target_id.is_empty():
-		print("no valid red trap target in front: ", username)
-		return
+		# No valid rival target (e.g. solo racer): make red shell boomerang back to sender.
+		target_id = username
+		allow_self_damage = true
+		print("no valid red trap target in front; boomerang to sender: ", username)
 	if not lurker_gang.lurkers.has(target_id):
 		print("red trap target missing from lurker list: ", target_id)
 		return
@@ -100,7 +103,7 @@ func _spawn_red_trap(username: String, attacker: Lurker) -> void:
 
 	trap.name = username + "_red_trap_" + target_id
 	trap.target_id = target_id
-	trap.setup_collision(username, attacker.lap_count, "red_shell", false)
+	trap.setup_collision(username, attacker.lap_count, "red_shell", allow_self_damage)
 	trap.red_motion_finished.connect(_on_red_motion_finished)
 	trap.launch_red_by_points(attacker_points, target_points, max_points, red_delay)
 

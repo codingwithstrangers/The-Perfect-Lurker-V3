@@ -66,7 +66,7 @@ func _on_trap_area_area_entered(other: Area2D) -> void:
 	
 	# Send chat message for trap hit
 	if lurker.username == dropped_by:
-		var msg = dropped_by + " hit their own " + trap_type + "!"
+		var msg = dropped_by + " hit their own " + trap_type + "! Stop hitting yourself!"
 		event_stream.system_message.emit(msg)
 	else:
 		var msg = dropped_by + " hit " + lurker.username + " with " + trap_type + "!"

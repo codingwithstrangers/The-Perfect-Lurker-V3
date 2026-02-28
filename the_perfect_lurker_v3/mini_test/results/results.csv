@@ -1,0 +1,13 @@
+timestamp,username,place,miles,laps,races_joined,rejoin_count,leave_count,ban_count,1st_place_count,2nd_place_count,3rd_place_count,yellow_victims,red_victims,yellow_attackers,red_attackers
+2026-02-26 15:44,theyagich,1,927.28,431,1,0,0,0,1,0,1,"","","",""
+2026-02-26 15:44,xowilough,2,836.43,388,1,0,0,0,2,1,0,"","","",""
+
+timestamp,username,place,miles,laps,races_joined,rejoin_count,leave_count,ban_count,1st_place_count,2nd_place_count,3rd_place_count,yellow_victims,red_victims,yellow_attackers,red_attackers
+2026-02-26 15:44,robodom_,0,10947.29,5088,6,0,0,0,0,0,0,"","","",""
+2026-02-26 15:44,xowilough,0,7922.67,3682,5,0,0,0,1,1,0,"","","",""
+2026-02-26 15:44,theyagich,0,4884.96,2271,2,0,0,0,1,0,0,"","","",""
+2026-02-26 15:44,kromantiking,0,2398.39,1114,2,0,0,0,0,0,0,"","","",""
+2026-02-26 15:44,ghostdaddy,0,2212.65,1028,2,0,0,0,0,0,0,"","","",""
+2026-02-26 15:44,theidentitybooth,0,907.78,422,4,0,0,0,0,0,0,"","theidentitybooth(4)","codingwithstrangers(2)","codingwithstrangers(4)"
+2026-02-26 15:44,sockheadrps,0,42.3,18,2,0,0,0,0,0,0,"","","codingwithstrangers(2)",""
+2026-02-26 15:44,username,0,0.0,0,0,0,0,0,0,0,0,"","","",""

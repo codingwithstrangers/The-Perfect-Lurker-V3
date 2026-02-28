@@ -1,4 +1,4 @@
-[gd_scene load_steps=41 format=3 uid="uid://brlanoyshjsn5"]
+[gd_scene load_steps=42 format=3 uid="uid://brlanoyshjsn5"]
 
 [ext_resource type="Texture2D" uid="uid://b3q0lw3anqx4q" path="res://scenary/track_one.png" id="1_0odxb"]
 [ext_resource type="Texture2D" uid="uid://pxfuc1ur8jl" path="res://scenary/track_three/smb-anniversary-super-mario-64-power-star2.png" id="4_xuqvo"]
@@ -29,7 +29,7 @@
 [ext_resource type="Texture2D" uid="uid://cccuw7mfd6y0n" path="res://missile/kunai/kunai.png" id="24_qsp4k"]
 [ext_resource type="Texture2D" uid="uid://duqu4ikb1ro1g" path="res://missile/kunai/batarang.png" id="25_kq58d"]
 [ext_resource type="Texture2D" uid="uid://bvivtgtpo2lla" path="res://missile/rasengan/rasensuriken.png" id="26_j7n2w"]
-[ext_resource type="Script" path="res://events/runtime_logger.gd" id="27_2h0l2"]
+[ext_resource type="Script" uid="uid://05ky1xceuxvd" path="res://events/runtime_logger.gd" id="27_2h0l2"]
 
 [sub_resource type="Curve2D" id="Curve2D_cegan"]
 _data = {
@@ -370,12 +370,8 @@ command_prefixes = Array[String]([])
 scopes = Array[String](["chat:edit", "chat:read", "channel:read:redemptions", "channel:read:subscriptions"])
 disk_cache = true
 
-[node name="runtime_logger" type="Node" parent="managers" node_paths=PackedStringArray("event_stream", "twitch_events", "lurker_gang", "ui_root")]
+[node name="runtime_logger" type="Node" parent="managers"]
 script = ExtResource("27_2h0l2")
-event_stream = NodePath("../event_stream")
-twitch_events = NodePath("../twitch_events")
-lurker_gang = NodePath("../lurker_gang")
-ui_root = NodePath("../../ui_root")
 
 [node name="track_manager" type="Node" parent="managers" node_paths=PackedStringArray("select_track")]
 script = ExtResource("18_cegan")

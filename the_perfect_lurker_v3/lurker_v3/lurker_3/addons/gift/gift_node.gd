@@ -102,6 +102,7 @@ var peer : StreamPeerTCP
 var connected : bool = false
 var user_regex : RegEx = RegEx.new()
 var twitch_restarting : bool = false
+var twitch_reconnect_attempts : int = 0
 
 # Token-loop state:
 # - token_expires_at_unix tracks absolute expiry time from Twitch data.
@@ -113,6 +114,7 @@ var token_refresh_retry_count : int = 0
 var token_refresh_retry_next_unix : int = 0
 
 const USER_AGENT : String = "User-Agent: GIFT/4.1.5 (Godot Engine)"
+const TWITCH_RECONNECT_MAX_ATTEMPTS : int = 3
 const TOKEN_CHECK_INTERVAL_SEC : float = 30.0
 const TOKEN_REFRESH_MARGIN_SEC : int = 300
 const TOKEN_REFRESH_RETRY_BASE_SEC : float = 15.0
@@ -201,14 +203,37 @@ func authenticate(client_id, client_secret) -> void:
 	# 5) Start the background refresh loop.
 	_start_token_loop("authenticate")
 
+# Exchange a refresh token for a new access token using Twitch's
+# application/x-www-form-urlencoded token endpoint contract.
+# Returns {} on any failure; otherwise returns Twitch token payload.
 func refresh_access_token(refresh : String) -> Dictionary:
 	print("Refreshing access token.")
 	var request : HTTPRequest = HTTPRequest.new()
 	add_child(request)
-	request.request("https://id.twitch.tv/oauth2/token", [USER_AGENT, "Content-Type: application/x-www-form-urlencoded"], HTTPClient.METHOD_POST, "grant_type=refresh_token&refresh_token=%s&client_id=%s&client_secret=%s" % [refresh.uri_encode(), client_id, client_secret])
+	var normalized_refresh := refresh.uri_decode()
+	var refresh_body := _build_form_urlencoded({
+		"grant_type": "refresh_token",
+		"refresh_token": normalized_refresh,
+		"client_id": client_id,
+		"client_secret": client_secret,
+	})
+	var req_err := request.request("https://id.twitch.tv/oauth2/token", [USER_AGENT, "Content-Type: application/x-www-form-urlencoded"], HTTPClient.METHOD_POST, refresh_body)
+	if req_err != OK:
+		request.queue_free()
+		print("[TOKEN] Refresh request failed to start. err=", req_err)
+		return {}
 	var reply : Array = await(request.request_completed)
 	request.queue_free()
-	var response : Dictionary = JSON.parse_string(reply[3].get_string_from_utf8())
+	var response_code := int(reply[1])
+	var raw_body: String = reply[3].get_string_from_utf8()
+	var parsed_body = JSON.parse_string(raw_body)
+	var response : Dictionary = parsed_body if typeof(parsed_body) == TYPE_DICTIONARY else {}
+	if response_code < 200 or response_code >= 300:
+		if response.has("error"):
+			print("[TOKEN] Refresh failed (HTTP ", response_code, "): ", response.get("message", response.get("error", "unknown_error")))
+		else:
+			print("[TOKEN] Refresh failed (HTTP ", response_code, ") raw=", raw_body)
+		return {}
 	if (response.has("error")):
 		print("[TOKEN] Refresh failed: ", response.get("message", response.get("error", "unknown_error")))
 		return {}
@@ -277,18 +302,46 @@ func get_token() -> void:
 				peer.disconnect_from_host()
 				var request : HTTPRequest = HTTPRequest.new()
 				add_child(request)
-				request.request("https://id.twitch.tv/oauth2/token", [USER_AGENT, "Content-Type: application/x-www-form-urlencoded"], HTTPClient.METHOD_POST, "client_id=" + client_id + "&client_secret=" + client_secret + "&code=" + data["code"] + "&grant_type=authorization_code&redirect_uri=http://localhost:18297")
+				var auth_code := str(data.get("code", "")).uri_decode()
+				var code_body := _build_form_urlencoded({
+					"client_id": client_id,
+					"client_secret": client_secret,
+					"code": auth_code,
+					"grant_type": "authorization_code",
+					"redirect_uri": "http://localhost:18297",
+				})
+				var code_req_err := request.request("https://id.twitch.tv/oauth2/token", [USER_AGENT, "Content-Type: application/x-www-form-urlencoded"], HTTPClient.METHOD_POST, code_body)
+				if code_req_err != OK:
+					print("[TOKEN] Auth code exchange request failed to start. err=", code_req_err)
+					request.queue_free()
+					server.stop()
+					user_token_received.emit({})
+					break
 				var answer = await(request.request_completed)
 				if (!DirAccess.dir_exists_absolute("user://gift/auth")):
 					DirAccess.make_dir_recursive_absolute("user://gift/auth")
 				var file : FileAccess = FileAccess.open_encrypted_with_pass("user://gift/auth/user_token", FileAccess.WRITE, client_secret)
-				var token_data = answer[3].get_string_from_utf8()
+				var token_data: String = answer[3].get_string_from_utf8()
+				if int(answer[1]) < 200 or int(answer[1]) >= 300:
+					print("[TOKEN] Auth code exchange failed (HTTP ", int(answer[1]), ") raw=", token_data)
+					request.queue_free()
+					server.stop()
+					user_token_received.emit({})
+					break
 				file.store_string(token_data)
 				request.queue_free()
 				server.stop()
 				user_token_received.emit(JSON.parse_string(token_data))
 				break
 		await(get_tree().create_timer(0.1).timeout)
+
+func _build_form_urlencoded(params: Dictionary) -> String:
+	var parts: Array[String] = []
+	for key in params.keys():
+		var encoded_key := str(key).uri_encode()
+		var encoded_value := str(params[key]).uri_encode()
+		parts.append(encoded_key + "=" + encoded_value)
+	return "&".join(parts)
 
 func send_response(peer : StreamPeer, response : String, body : PackedByteArray) -> void:
 	peer.put_data(("HTTP/1.1 %s\r\n" % response).to_utf8_buffer())
@@ -344,6 +397,10 @@ func _save_token_to_disk(token_data: Dictionary) -> void:
 		return
 	file.store_string(JSON.stringify(token_data))
 
+# Normalizes token payload into runtime state:
+# - stores access/refresh fields in `token`
+# - computes/stores absolute expiry `expires_at_unix`
+# - optionally persists to encrypted disk cache
 func _apply_token_state(token_data: Dictionary, persist: bool = true) -> bool:
 	if typeof(token_data) != TYPE_DICTIONARY:
 		return false
@@ -399,6 +456,12 @@ func _calc_refresh_retry_delay_sec() -> float:
 func _emit_token_refresh_status(status: String, details: Dictionary = {}) -> void:
 	token_refresh_status.emit(status, details)
 
+# Single refresh attempt pipeline:
+# 1) Guard against duplicate parallel refresh attempts.
+# 2) Refresh via Twitch OAuth endpoint.
+# 3) Apply + persist rotated token data.
+# 4) Validate fresh access token with /oauth2/validate.
+# 5) Close IRC/EventSub sockets so app-level reconnect flow rebinds with new token.
 func _attempt_token_refresh(reason: String) -> bool:
 	if refresh_in_progress:
 		print("[TOKEN] Refresh already in progress; skipping duplicate request (", reason, ").")
@@ -438,12 +501,18 @@ func _attempt_token_refresh(reason: String) -> bool:
 	user_token_valid.emit()
 	# Force reconnect so IRC/EventSub sessions start using the rotated token.
 	if connected and websocket != null:
-		twitch_restarting = true
+		# Defer IRC reconnect ownership to TwitchEvents reconnect scheduler.
+		# Gift only closes the socket so twitch_disconnected emits naturally.
+		twitch_restarting = false
 		websocket.close()
 	if eventsub_connected and eventsub != null:
 		eventsub.close()
 	return true
 
+# Periodic token loop:
+# - runs every TOKEN_CHECK_INTERVAL_SEC
+# - waits until token is inside TOKEN_REFRESH_MARGIN_SEC window
+# - retries refresh with backoff before emitting fatal invalid state
 func _on_token_refresh_tick() -> void:
 	# Housekeeping for EventSub de-dup cache.
 	var to_remove : Array[String] = []
@@ -502,6 +571,7 @@ func _process(delta : float) -> void:
 				if (!connected):
 					twitch_connected.emit()
 					connected = true
+					twitch_reconnect_attempts = 0
 					print_debug("Connected to Twitch.")
 				else:
 					while (websocket.get_available_packet_count()):
@@ -511,21 +581,22 @@ func _process(delta : float) -> void:
 						last_msg = Time.get_ticks_msec()
 			WebSocketPeer.STATE_CLOSED:
 				if (!connected):
+					twitch_reconnect_attempts = 0
 					twitch_unavailable.emit()
 					print_debug("Could not connect to Twitch.")
 					websocket = null
 				elif(twitch_restarting):
-					print_debug("Reconnecting to Twitch...")
-					twitch_reconnect.emit()
-					connect_to_irc()
-					await(twitch_connected)
-					for channel in channels.keys():
-						join_channel(channel)
+					print_debug("Reconnect requested; deferring to TwitchEvents scheduler.")
+					connected = false
+					twitch_disconnected.emit()
+					websocket = null
 					twitch_restarting = false
+					twitch_reconnect_attempts = 0
 				else:
 					print_debug("Disconnected from Twitch.")
 					twitch_disconnected.emit()
 					connected = false
+					twitch_reconnect_attempts = 0
 					print_debug("Connection closed! [%s]: %s"%[websocket.get_close_code(), websocket.get_close_reason()])
 	if (eventsub):
 		eventsub.poll()
@@ -853,7 +924,11 @@ func handle_message(message : String, tags : Dictionary) -> void:
 			handle_command(sender_data, msg[3].split(" ", true, 1), true)
 			whisper_message.emit(sender_data, msg[3].right(-1))
 		"RECONNECT":
-			twitch_restarting = true
+			# Let app-level reconnect workflow own reconnect attempts.
+			twitch_restarting = false
+			twitch_reconnect_attempts = 0
+			if websocket != null:
+				websocket.close()
 		"USERSTATE", "ROOMSTATE":
 			var room = msg[2].right(-1)
 			if (!last_state.has(room)):
