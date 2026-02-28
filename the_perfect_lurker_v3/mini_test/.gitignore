@@ -9,3 +9,7 @@ G:\strangest_coding_projects\the_perfect_lurker_v3\lurker_v3\addons\gift\example
 # Runtime/diagnostic logs (sensitive)
 logs/
 *.log
+
+# Runtime output + local build artifacts
+results/
+MVP/
