@@ -28,6 +28,7 @@ var login_client_id: String = ""
 var login_client_secret: String = ""
 var login_channel: String = ""
 var reconnect_in_progress: bool = false
+var eventsub_repair_in_progress: bool = false
 var reconnect_timer: Timer
 var health_timer: Timer
 var chat_sync_timer: Timer
@@ -146,18 +147,51 @@ func _on_reconnect_timer_timeout() -> void:
 	if reconnect_in_progress:
 		reconnect_timer.start()
 
+func _repair_eventsub_only(reason: String) -> void:
+	# Keeps IRC stable and repairs EventSub independently.
+	if eventsub_repair_in_progress or reconnect_in_progress:
+		return
+	if websocket == null or websocket.get_ready_state() != WebSocketPeer.STATE_OPEN or not connected:
+		_schedule_reconnect("IRC unavailable during EventSub repair")
+		return
+
+	eventsub_repair_in_progress = true
+	_update_status_label("Reconnecting EventSub...")
+	print("[TWITCH] Repairing EventSub: ", reason)
+
+	if eventsub != null:
+		eventsub.close()
+
+	# Start EventSub connect flow without forcing IRC reconnect.
+	connect_to_eventsub()
+
+	var started_ms = Time.get_ticks_msec()
+	var timeout_ms = 10000
+	while Time.get_ticks_msec() - started_ms < timeout_ms:
+		if eventsub != null and eventsub.get_ready_state() == WebSocketPeer.STATE_OPEN and eventsub_connected:
+			await _subscribe_core_events()
+			eventsub_repair_in_progress = false
+			if connected:
+				_update_status_label("Connected")
+			return
+		await get_tree().create_timer(0.2).timeout
+
+	eventsub_repair_in_progress = false
+	print("[TWITCH] EventSub repair timed out; scheduling full reconnect.")
+	_schedule_reconnect("EventSub repair timeout")
+
 func _healthcheck_connection() -> void:
 	# Periodic watchdog for both IRC and EventSub sockets.
 	_load_login_from_settings_if_needed()
 	if login_client_id == "" or login_channel == "":
 		return
-	if reconnect_in_progress:
+	if reconnect_in_progress or eventsub_repair_in_progress:
 		return
 	if websocket == null or websocket.get_ready_state() != WebSocketPeer.STATE_OPEN or not connected:
 		_schedule_reconnect("IRC not connected")
 		return
 	if eventsub == null or eventsub.get_ready_state() != WebSocketPeer.STATE_OPEN or not eventsub_connected:
-		_schedule_reconnect("EventSub not connected")
+		await _repair_eventsub_only("healthcheck")
 
 func _on_twitch_disconnected() -> void:
 	_update_status_label("Disconnected")
@@ -169,11 +203,11 @@ func _on_twitch_unavailable() -> void:
 
 func _on_events_disconnected() -> void:
 	_update_status_label("Disconnected")
-	_schedule_reconnect("EventSub disconnected")
+	await _repair_eventsub_only("EventSub disconnected")
 
 func _on_events_unavailable() -> void:
 	_update_status_label("Disconnected")
-	_schedule_reconnect("EventSub unavailable")
+	await _repair_eventsub_only("EventSub unavailable")
 
 func _on_user_token_invalid() -> void:
 	# Token loop can raise this after repeated refresh failures.

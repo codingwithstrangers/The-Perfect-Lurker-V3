@@ -68,7 +68,7 @@ if "%~1"=="" (
             exit /b 1
         )
 
-        set "EXE_PATH=!EXE_%EXE_CHOICE%!"
+        call set "EXE_PATH=%%EXE_!EXE_CHOICE!%%"
     )
 ) else (
     set "EXE_PATH=%~1"
@@ -86,6 +86,11 @@ if not exist "%EXE_PATH%" (
     pause
     exit /b 1
 )
+
+for %%A in ("%EXE_PATH%") do (
+    set "EXE_BASENAME=%%~nA"
+)
+set "LOG_FILE=%LOG_DIR%\exe_runtime_!EXE_BASENAME!_%STAMP%.log"
 
 rem Validate matching .pck sidecar commonly required by Godot exports.
 for %%A in ("%EXE_PATH%") do (
