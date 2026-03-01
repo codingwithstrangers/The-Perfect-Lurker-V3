@@ -1,5 +1,5 @@
-theyagich
-Place: 1
-Points: 560
-Rival: codingwithstrangers
+N/A
+Place: N/A
+Points: 0
+Rival: N/A
 Bully: N/A

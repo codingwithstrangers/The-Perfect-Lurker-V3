@@ -16,9 +16,9 @@ if not exist "%RUNNER%" (
 )
 
 if "%~1"=="" (
-    rem No argument: let runner show full EXE menu (MVP + mini_test root).
-    call "%RUNNER%"
+    rem No argument: show MVP-only EXE menu.
+    call "%RUNNER%" --mvp-only
 ) else (
-    rem Pass-through mode: caller specifies EXE path/args.
-    call "%RUNNER%" %*
+    rem Pass-through mode: caller specifies EXE path/args in MVP-only mode.
+    call "%RUNNER%" --mvp-only %*
 )

@@ -3,8 +3,15 @@ setlocal EnableDelayedExpansion
 
 rem Generic EXE launcher with runtime log capture.
 rem - Discovers EXEs (or accepts one as argument)
-rem - Warns if matching Godot .pck sidecar is missing
+rem - Supports --mvp-only to only list EXEs in .\MVP
+rem - Requires matching Godot .pck sidecar + close timestamps
 rem - Pipes stdout/stderr to logs\exe_runtime_YYYYMMDD_HHMMSS.log
+
+set "MVP_ONLY=0"
+if /I "%~1"=="--mvp-only" (
+    set "MVP_ONLY=1"
+    shift
+)
 
 set "BASE_DIR=%~dp0"
 set "LOG_DIR=%BASE_DIR%logs"
@@ -24,18 +31,20 @@ if "%~1"=="" (
         )
     )
 
-    rem Second: search mini_test root EXEs
-    for %%F in ("%BASE_DIR%*.exe") do (
-        if exist "%%~fF" (
-            set /a EXE_COUNT+=1
-            set "EXE_!EXE_COUNT!=%%~fF"
+    rem Second: search mini_test root EXEs (unless MVP-only mode requested)
+    if "%MVP_ONLY%"=="0" (
+        for %%F in ("%BASE_DIR%*.exe") do (
+            if exist "%%~fF" (
+                set /a EXE_COUNT+=1
+                set "EXE_!EXE_COUNT!=%%~fF"
+            )
         )
     )
 
     if !EXE_COUNT! EQU 0 (
         echo No EXE found in:
         echo   %BASE_DIR%MVP
-        echo   %BASE_DIR%
+        if "%MVP_ONLY%"=="0" echo   %BASE_DIR%
         echo Usage: run_with_logs.bat "C:\path\to\your.exe"
         pause
         exit /b 1
@@ -74,7 +83,7 @@ if "%~1"=="" (
     set "EXE_PATH=%~1"
     if not exist "%EXE_PATH%" (
         if exist "%BASE_DIR%MVP\%~1" set "EXE_PATH=%BASE_DIR%MVP\%~1"
-        if not exist "%EXE_PATH%" (
+        if not exist "%EXE_PATH%" if "%MVP_ONLY%"=="0" (
             if exist "%BASE_DIR%%~1" set "EXE_PATH=%BASE_DIR%%~1"
         )
     )
@@ -99,7 +108,22 @@ for %%A in ("%EXE_PATH%") do (
 if exist "!EXPECTED_PCK!" (
     echo Sidecar found: !EXPECTED_PCK!
 ) else (
-    echo Warning: matching PCK not found: !EXPECTED_PCK!
+    echo Error: matching PCK not found: !EXPECTED_PCK!
+    echo Aborting launch to prevent mismatched build/runtime data.
+    pause
+    exit /b 1
+)
+
+rem Ensure EXE and PCK look like the same build generation (close write times).
+for /f %%i in ('powershell -NoProfile -Command "$e=Get-Item -LiteralPath ''%EXE_PATH%''; $p=Get-Item -LiteralPath ''!EXPECTED_PCK!''; [int][math]::Abs(($e.LastWriteTimeUtc-$p.LastWriteTimeUtc).TotalSeconds)"') do set "PAIR_AGE_SEC=%%i"
+if not defined PAIR_AGE_SEC set "PAIR_AGE_SEC=999999"
+if !PAIR_AGE_SEC! GTR 600 (
+    echo Error: EXE/PCK timestamps differ by !PAIR_AGE_SEC! seconds.
+    echo This usually means you are launching a stale or mismatched build pair.
+    echo EXE: %EXE_PATH%
+    echo PCK: !EXPECTED_PCK!
+    pause
+    exit /b 1
 )
 
 echo Running: %EXE_PATH%

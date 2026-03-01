@@ -499,14 +499,9 @@ func _attempt_token_refresh(reason: String) -> bool:
 	print("[TOKEN] Refresh validated successfully for user: ", username)
 	_emit_token_refresh_status("success", {"reason": reason, "username": username})
 	user_token_valid.emit()
-	# Force reconnect so IRC/EventSub sessions start using the rotated token.
-	if connected and websocket != null:
-		# Defer IRC reconnect ownership to TwitchEvents reconnect scheduler.
-		# Gift only closes the socket so twitch_disconnected emits naturally.
-		twitch_restarting = false
-		websocket.close()
-	if eventsub_connected and eventsub != null:
-		eventsub.close()
+	# Keep live sockets up after a successful refresh.
+	# Reconnect only if Twitch later reports auth/session issues.
+	print("[TOKEN] Refresh applied without forced reconnect.")
 	return true
 
 # Periodic token loop:

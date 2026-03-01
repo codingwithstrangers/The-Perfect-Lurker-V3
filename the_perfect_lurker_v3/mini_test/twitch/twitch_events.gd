@@ -23,6 +23,7 @@ var score_board: String
 @export_range(5.0, 300.0, 1.0, "suffix:sec") var chat_sync_interval_seconds: float = 30.0
 const RECONNECT_DELAY_SEC := 5.0
 const HEALTHCHECK_INTERVAL_SEC := 30.0
+const BUILD_SIGNATURE := "twitch_events:2026-03-01a"
 
 var login_client_id: String = ""
 var login_client_secret: String = ""
@@ -41,6 +42,7 @@ var names_refresh_in_progress: bool = false
 var names_command_supported: bool = true
 
 func _ready() -> void:
+	print("[BUILD] ", BUILD_SIGNATURE)
 	event_stream.send_chat.connect(chat)
 	event_stream.system_message.connect(chat)
 	chat_message.connect(on_chat)

@@ -1,5 +1,5 @@
-robodom_
-Place: 2
-Points: 313
+N/A
+Place: N/A
+Points: 0
 Rival: N/A
 Bully: N/A
