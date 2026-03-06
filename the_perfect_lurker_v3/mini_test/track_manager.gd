@@ -95,6 +95,8 @@ func _initialize_track(track_node: Node2D) -> void:
 	if is_track_selected:
 		return
 	is_track_selected = true
+	# Always force the selected track visible, even if its default scene visibility is off.
+	track_node.visible = true
 	
 	track = track_node.find_child('track_path')
 	pit = track_node.find_child('track_path_pit')

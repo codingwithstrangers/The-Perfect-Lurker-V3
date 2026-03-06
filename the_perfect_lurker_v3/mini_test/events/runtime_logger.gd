@@ -39,7 +39,7 @@ func _log(level: String, message: String, details: Variant = null) -> void:
 		_log_file.flush()
 
 func _connect_backend_signals() -> void:
-	var event_stream_node = get_node_or_null(event_stream)
+	var event_stream_node = _resolve_node(event_stream, ["../event_stream", "/root/root/managers/event_stream"])
 	if event_stream_node != null:
 		_safe_connect(event_stream_node, "join_race_attempted", func(username, _profile_url): _log("EVENT", "join_race_attempted", {"user": username}))
 		_safe_connect(event_stream_node, "leave_race_attempted", func(username): _log("EVENT", "leave_race_attempted", {"user": username}))
@@ -54,7 +54,7 @@ func _connect_backend_signals() -> void:
 	else:
 		_log("WARN", "event_stream node not found", null)
 
-	var twitch_node = get_node_or_null(twitch_events)
+	var twitch_node = _resolve_node(twitch_events, ["../twitch_events", "/root/root/managers/twitch_events"])
 	if twitch_node != null:
 		_safe_connect(twitch_node, "twitch_connected", func(): _log("TWITCH", "twitch_connected", null))
 		_safe_connect(twitch_node, "twitch_disconnected", func(): _log("TWITCH", "twitch_disconnected", null))
@@ -72,7 +72,7 @@ func _connect_backend_signals() -> void:
 		_log("WARN", "twitch_events node not found", null)
 
 func _connect_frontend_signals() -> void:
-	var ui_node = get_node_or_null(ui_root)
+	var ui_node = _resolve_node(ui_root, ["../../ui_root", "/root/root/ui_root"])
 	if ui_node == null:
 		_log("WARN", "ui_root node not found", null)
 		return
@@ -94,12 +94,25 @@ func _safe_connect(emitter: Object, signal_name: String, callback: Callable) -> 
 	if err != OK and err != ERR_ALREADY_IN_USE:
 		_log("WARN", "failed to connect signal", {"signal": signal_name, "error": err})
 
+func _resolve_node(explicit_path: NodePath, fallback_paths: Array[String]) -> Node:
+	if explicit_path != NodePath(""):
+		var explicit_node = get_node_or_null(explicit_path)
+		if explicit_node != null:
+			return explicit_node
+	for p in fallback_paths:
+		var fallback_node = get_node_or_null(NodePath(p))
+		if fallback_node != null:
+			return fallback_node
+	return null
+
 func _log_token_refresh_status(status: String, details: Variant = null) -> void:
+	if status == "tick":
+		return
 	var level := "TOKEN_REFRESH"
 	match status:
 		"success", "loop_started":
 			level = "INFO"
-		"attempting", "tick", "retry_scheduled":
+		"attempting", "retry_scheduled":
 			level = "WARN"
 		"attempt_failed", "fatal":
 			level = "ERROR"

@@ -185,6 +185,8 @@ func spawn_lurker(user_name: String, url: String, image: Image):
 	lurker.profile_url = url
 	lurker.profile_image = final_texture
 	lurker.car_sprite.texture = final_texture
+	lurker.car_sprite.visible = true
+	lurker.car_sprite.modulate = Color(1.0, 1.0, 1.0, 1.0)
 	lurker.name = user_name
 	event_stream.joined_race.emit(lurker)
 

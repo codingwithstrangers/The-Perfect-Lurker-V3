@@ -23,13 +23,15 @@ var score_board: String
 @export_range(5.0, 300.0, 1.0, "suffix:sec") var chat_sync_interval_seconds: float = 30.0
 const RECONNECT_DELAY_SEC := 5.0
 const HEALTHCHECK_INTERVAL_SEC := 30.0
-const BUILD_SIGNATURE := "twitch_events:2026-03-01a"
+const REWARD_PRESENCE_GRACE_SEC := 60.0
+const MAX_RECONNECT_ATTEMPTS := 12
 
 var login_client_id: String = ""
 var login_client_secret: String = ""
 var login_channel: String = ""
 var reconnect_in_progress: bool = false
-var eventsub_repair_in_progress: bool = false
+var reconnect_attempt_count: int = 0
+var reconnect_exhausted: bool = false
 var reconnect_timer: Timer
 var health_timer: Timer
 var chat_sync_timer: Timer
@@ -37,12 +39,12 @@ var status_layer: CanvasLayer
 var status_label: Label
 const CHAT_NAMES_SNAPSHOT_PATH := "user://results/chat_names.txt"
 var active_chat_users: Dictionary = {}
+var reward_presence_grace_until: Dictionary = {}
 var names_snapshot_users: Dictionary = {}
 var names_refresh_in_progress: bool = false
 var names_command_supported: bool = true
 
 func _ready() -> void:
-	print("[BUILD] ", BUILD_SIGNATURE)
 	event_stream.send_chat.connect(chat)
 	event_stream.system_message.connect(chat)
 	chat_message.connect(on_chat)
@@ -90,6 +92,8 @@ func try_login(
 	login_client_secret = client_secret_edit
 	login_channel = channel_edit.to_lower()
 	reconnect_in_progress = false
+	reconnect_attempt_count = 0
+	reconnect_exhausted = false
 	await _connect_and_subscribe()
 
 func _connect_and_subscribe() -> void:
@@ -111,9 +115,14 @@ func _connect_and_subscribe() -> void:
 		await(channel_data_received)
 	_request_chat_names_refresh()
 
-	await(connect_to_eventsub())
+	var eventsub_ok = await(connect_to_eventsub())
+	if not eventsub_ok:
+		_schedule_reconnect("EventSub connect failed")
+		return
 	await _subscribe_core_events()
 	reconnect_in_progress = false
+	reconnect_attempt_count = 0
+	reconnect_exhausted = false
 	_update_status_label("Connected")
 	if login_channel != "":
 		event_stream.system_message.emit("Twitch connection restored.")
@@ -133,67 +142,47 @@ func _schedule_reconnect(reason: String) -> void:
 	_load_login_from_settings_if_needed()
 	if login_client_id == "" or login_client_secret == "" or login_channel == "":
 		return
+	if reconnect_exhausted:
+		return
 	if reconnect_in_progress:
 		return
 	reconnect_in_progress = true
+	reconnect_attempt_count = 0
 	_update_status_label("Reconnecting...")
 	print("[TWITCH] Scheduling reconnect: ", reason)
 	if reconnect_timer.is_stopped():
 		reconnect_timer.start()
 
 func _on_reconnect_timer_timeout() -> void:
-	print("[TWITCH] Attempting reconnect...")
+	if reconnect_attempt_count >= MAX_RECONNECT_ATTEMPTS:
+		reconnect_in_progress = false
+		reconnect_exhausted = true
+		_update_status_label("Disconnected (Retry Limit)")
+		print("[TWITCH] Reconnect halted after ", MAX_RECONNECT_ATTEMPTS, " failed attempts.")
+		if login_channel != "":
+			event_stream.system_message.emit("Twitch reconnect stopped after " + str(MAX_RECONNECT_ATTEMPTS) + " attempts. Press Login to retry.")
+		return
+
+	reconnect_attempt_count += 1
+	print("[TWITCH] Attempting reconnect (", reconnect_attempt_count, "/", MAX_RECONNECT_ATTEMPTS, ")...")
 	_update_status_label("Reconnecting...")
 	await _connect_and_subscribe()
 	# If reconnect flag is still set (partial failure), keep retrying.
 	if reconnect_in_progress:
 		reconnect_timer.start()
 
-func _repair_eventsub_only(reason: String) -> void:
-	# Keeps IRC stable and repairs EventSub independently.
-	if eventsub_repair_in_progress or reconnect_in_progress:
-		return
-	if websocket == null or websocket.get_ready_state() != WebSocketPeer.STATE_OPEN or not connected:
-		_schedule_reconnect("IRC unavailable during EventSub repair")
-		return
-
-	eventsub_repair_in_progress = true
-	_update_status_label("Reconnecting EventSub...")
-	print("[TWITCH] Repairing EventSub: ", reason)
-
-	if eventsub != null:
-		eventsub.close()
-
-	# Start EventSub connect flow without forcing IRC reconnect.
-	connect_to_eventsub()
-
-	var started_ms = Time.get_ticks_msec()
-	var timeout_ms = 10000
-	while Time.get_ticks_msec() - started_ms < timeout_ms:
-		if eventsub != null and eventsub.get_ready_state() == WebSocketPeer.STATE_OPEN and eventsub_connected:
-			await _subscribe_core_events()
-			eventsub_repair_in_progress = false
-			if connected:
-				_update_status_label("Connected")
-			return
-		await get_tree().create_timer(0.2).timeout
-
-	eventsub_repair_in_progress = false
-	print("[TWITCH] EventSub repair timed out; scheduling full reconnect.")
-	_schedule_reconnect("EventSub repair timeout")
-
 func _healthcheck_connection() -> void:
 	# Periodic watchdog for both IRC and EventSub sockets.
 	_load_login_from_settings_if_needed()
 	if login_client_id == "" or login_channel == "":
 		return
-	if reconnect_in_progress or eventsub_repair_in_progress:
+	if reconnect_in_progress:
 		return
 	if websocket == null or websocket.get_ready_state() != WebSocketPeer.STATE_OPEN or not connected:
 		_schedule_reconnect("IRC not connected")
 		return
 	if eventsub == null or eventsub.get_ready_state() != WebSocketPeer.STATE_OPEN or not eventsub_connected:
-		await _repair_eventsub_only("healthcheck")
+		_schedule_reconnect("EventSub not connected")
 
 func _on_twitch_disconnected() -> void:
 	_update_status_label("Disconnected")
@@ -205,11 +194,11 @@ func _on_twitch_unavailable() -> void:
 
 func _on_events_disconnected() -> void:
 	_update_status_label("Disconnected")
-	await _repair_eventsub_only("EventSub disconnected")
+	_schedule_reconnect("EventSub disconnected")
 
 func _on_events_unavailable() -> void:
 	_update_status_label("Disconnected")
-	await _repair_eventsub_only("EventSub unavailable")
+	_schedule_reconnect("EventSub unavailable")
 
 func _on_user_token_invalid() -> void:
 	# Token loop can raise this after repeated refresh failures.
@@ -277,14 +266,24 @@ func _apply_chat_source_of_truth(snapshot_users: Dictionary, reason: String) -> 
 func _set_chat_user_presence(user_name: String, is_present: bool, reason: String) -> void:
 	if user_name == "":
 		return
+	var user_key = user_name.to_lower()
 	if is_present:
-		active_chat_users[user_name] = true
+		active_chat_users[user_key] = true
+		reward_presence_grace_until.erase(user_key)
 	else:
-		active_chat_users.erase(user_name)
+		active_chat_users.erase(user_key)
 	_write_chat_names_snapshot_file()
 	_sync_lurkers_with_chat_presence()
 	if OS.is_debug_build():
-		print("[CHAT_SOT] ", reason, " user=", user_name, " present=", is_present)
+		print("[CHAT_SOT] ", reason, " user=", user_key, " present=", is_present)
+
+func _grant_reward_presence_grace(user_name: String, reason: String) -> void:
+	if user_name == "":
+		return
+	var user_key = user_name.to_lower()
+	reward_presence_grace_until[user_key] = Time.get_unix_time_from_system() + REWARD_PRESENCE_GRACE_SEC
+	if OS.is_debug_build():
+		print("[CHAT_SOT] grace user=", user_key, " until=", reward_presence_grace_until[user_key], " reason=", reason)
 
 func _write_chat_names_snapshot_file() -> void:
 	var ensure_dir_err = DirAccess.make_dir_recursive_absolute("user://results")
@@ -373,13 +372,23 @@ func _extract_names_users(message: String) -> Array[String]:
 	return names_list
 
 func _sync_lurkers_with_chat_presence() -> void:
+	var now_unix = Time.get_unix_time_from_system()
 	for user_name in lurker_gang.lurkers.keys():
 		var lurker = lurker_gang.lurkers[user_name]
-		var in_chat = active_chat_users.has(user_name.to_lower())
+		var user_key = user_name.to_lower()
+		var in_chat = active_chat_users.has(user_key)
+		var grace_until = float(reward_presence_grace_until.get(user_key, 0.0))
+		var grace_active = grace_until > now_unix
 		if in_chat:
+			reward_presence_grace_until.erase(user_key)
 			if lurker.state == Lurker.RaceState.InThePit:
 				event_stream.leave_the_pit.emit(user_name)
 		else:
+			if grace_active:
+				if OS.is_debug_build():
+					print("[CHAT_SOT] grace skip pit user=", user_key, " state=", lurker.state, " now=", now_unix, " until=", grace_until)
+				continue
+			reward_presence_grace_until.erase(user_key)
 			if lurker.state == Lurker.RaceState.Racing or lurker.state == Lurker.RaceState.LeavingThePit or lurker.state == Lurker.RaceState.Stunned:
 				event_stream.send_to_pit.emit(user_name)
 	
@@ -392,7 +401,13 @@ func on_chat(sender_data: SenderData, msg: String) -> void:
 			var reward_id = str(sender_data.tags.get("custom-reward-id", ""))
 			print("[REWARD CHAT SKIP] ", user_key, " reward_id=", reward_id, " msg=", msg)
 		return
+	var is_command = msg.begins_with("!")
+	var is_host_command = is_command and _is_broadcaster_user(user_key)
 	if !text_commands_enabled:
+		if is_host_command:
+			print("[HOST_CMD_AUDIT] user=", user_key, " command=", msg.to_lower(), " chat=NOT_SENT reason=text_commands_disabled")
+		elif is_command:
+			print("[VIEWER_CMD_AUDIT] user=", user_key, " command=", msg.to_lower(), " chat=NOT_SENT reason=text_commands_disabled")
 		event_stream.lurker_chat.emit(user_key)
 		return
 
@@ -403,6 +418,7 @@ func on_chat(sender_data: SenderData, msg: String) -> void:
 	var command = msg
 	if parts.size() > 0:
 		command = parts[0].to_lower()
+	var command_chat_queue_before = chat_queue.size()
 
 	match command:
 		"!join":
@@ -449,6 +465,20 @@ func on_chat(sender_data: SenderData, msg: String) -> void:
 		_:
 			# Any non-command chat message - emit lurker_chat to reset idle timer
 			event_stream.lurker_chat.emit(user_key)
+
+	if is_command:
+		var command_chat_queue_after = chat_queue.size()
+		var queued_delta = command_chat_queue_after - command_chat_queue_before
+		if is_host_command:
+			if queued_delta > 0:
+				print("[HOST_CMD_AUDIT] user=", user_key, " command=", command, " chat=SENT queued=", queued_delta)
+			else:
+				print("[HOST_CMD_AUDIT] user=", user_key, " command=", command, " chat=NOT_SENT")
+		else:
+			if queued_delta > 0:
+				print("[VIEWER_CMD_AUDIT] user=", user_key, " command=", command, " chat=SENT queued=", queued_delta)
+			else:
+				print("[VIEWER_CMD_AUDIT] user=", user_key, " command=", command, " chat=NOT_SENT")
 		
 		
 
@@ -458,6 +488,9 @@ func on_event(type: String, data: Dictionary) -> void:
 	match type:
 		"channel.channel_points_custom_reward_redemption.add":
 			var user_login = data["user_login"].to_lower()
+			# Reward redemptions are strong evidence user is present even if chat/NAMES lags.
+			_set_chat_user_presence(user_login, true, "REWARD")
+			_grant_reward_presence_grace(user_login, "REWARD_REDEMPTION")
 			match data["reward"]["id"]:
 				join_reward:
 					var user_data = await user_data_by_name(data["user_name"])

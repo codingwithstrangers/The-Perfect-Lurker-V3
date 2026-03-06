@@ -1,5 +1,5 @@
-N/A
-Place: N/A
-Points: 0
-Rival: N/A
+theidentitybooth
+Place: 3
+Points: 31
+Rival: codingwithstrangers
 Bully: N/A

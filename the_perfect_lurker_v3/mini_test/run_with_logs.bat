@@ -3,15 +3,9 @@ setlocal EnableDelayedExpansion
 
 rem Generic EXE launcher with runtime log capture.
 rem - Discovers EXEs (or accepts one as argument)
-rem - Supports --mvp-only to only list EXEs in .\MVP
+rem - Auto-selects freshest valid EXE+PCK pair when no arg is provided
 rem - Requires matching Godot .pck sidecar + close timestamps
 rem - Pipes stdout/stderr to logs\exe_runtime_YYYYMMDD_HHMMSS.log
-
-set "MVP_ONLY=0"
-if /I "%~1"=="--mvp-only" (
-    set "MVP_ONLY=1"
-    shift
-)
 
 set "BASE_DIR=%~dp0"
 set "LOG_DIR=%BASE_DIR%logs"
@@ -21,69 +15,27 @@ for /f %%i in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd_HHmmss
 set "LOG_FILE=%LOG_DIR%\exe_runtime_%STAMP%.log"
 
 if "%~1"=="" (
-    set /a EXE_COUNT=0
-
-    rem First: search MVP folder EXEs
-    for %%F in ("%BASE_DIR%MVP\*.exe") do (
-        if exist "%%~fF" (
-            set /a EXE_COUNT+=1
-            set "EXE_!EXE_COUNT!=%%~fF"
-        )
+    rem Pick freshest EXE that has a matching PCK within 10 minutes.
+    set "EXE_PATH="
+    for /f "usebackq delims=" %%I in (`powershell -NoProfile -Command "$base='%BASE_DIR%'; $dirs=@((Join-Path $base 'MVP'), $base); $pairs = foreach($d in $dirs){ if(Test-Path $d){ Get-ChildItem -Path $d -Filter *.exe -File | ForEach-Object { $pck=[System.IO.Path]::ChangeExtension($_.FullName,'.pck'); if(Test-Path $pck){ $p=Get-Item -LiteralPath $pck; [pscustomobject]@{ Exe=$_.FullName; ExeTime=$_.LastWriteTimeUtc; PairAge=[math]::Abs(($_.LastWriteTimeUtc-$p.LastWriteTimeUtc).TotalSeconds) } } } } }; $valid=$pairs | Where-Object { $_.PairAge -le 600 } | Sort-Object ExeTime -Descending; if($valid.Count -gt 0){ $valid[0].Exe }"`) do (
+        set "EXE_PATH=%%~I"
     )
 
-    rem Second: search mini_test root EXEs (unless MVP-only mode requested)
-    if "%MVP_ONLY%"=="0" (
-        for %%F in ("%BASE_DIR%*.exe") do (
-            if exist "%%~fF" (
-                set /a EXE_COUNT+=1
-                set "EXE_!EXE_COUNT!=%%~fF"
-            )
-        )
-    )
-
-    if !EXE_COUNT! EQU 0 (
-        echo No EXE found in:
+    if not defined EXE_PATH (
+        echo No valid EXE+PCK pair found in:
         echo   %BASE_DIR%MVP
-        if "%MVP_ONLY%"=="0" echo   %BASE_DIR%
+        echo   %BASE_DIR%
+        echo Requirement: matching .pck and EXE/PCK timestamps within 600 seconds.
         echo Usage: run_with_logs.bat "C:\path\to\your.exe"
         pause
         exit /b 1
     )
-
-    if !EXE_COUNT! EQU 1 (
-        set "EXE_PATH=!EXE_1!"
-    ) else (
-        echo Found !EXE_COUNT! EXEs. Choose one to run with logging:
-        for /L %%I in (1,1,!EXE_COUNT!) do (
-            echo   %%I^) !EXE_%%I!
-        )
-        set "EXE_CHOICE="
-        set /p EXE_CHOICE=Enter number ^(1-!EXE_COUNT!^): 
-
-        for /f "delims=0123456789" %%A in ("!EXE_CHOICE!") do set "EXE_CHOICE="
-        if "!EXE_CHOICE!"=="" (
-            echo Invalid selection.
-            pause
-            exit /b 1
-        )
-        if !EXE_CHOICE! LSS 1 (
-            echo Invalid selection.
-            pause
-            exit /b 1
-        )
-        if !EXE_CHOICE! GTR !EXE_COUNT! (
-            echo Invalid selection.
-            pause
-            exit /b 1
-        )
-
-        call set "EXE_PATH=%%EXE_!EXE_CHOICE!%%"
-    )
+    echo Auto-selected freshest valid pair: %EXE_PATH%
 ) else (
     set "EXE_PATH=%~1"
     if not exist "%EXE_PATH%" (
         if exist "%BASE_DIR%MVP\%~1" set "EXE_PATH=%BASE_DIR%MVP\%~1"
-        if not exist "%EXE_PATH%" if "%MVP_ONLY%"=="0" (
+        if not exist "%EXE_PATH%" (
             if exist "%BASE_DIR%%~1" set "EXE_PATH=%BASE_DIR%%~1"
         )
     )

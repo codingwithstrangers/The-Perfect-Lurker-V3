@@ -2,8 +2,8 @@
 setlocal EnableExtensions EnableDelayedExpansion
 
 rem MVP launcher:
-rem - If no argument is provided, show EXE picker (via ..\run_with_logs.bat).
-rem - Validate matching .pck sidecar for that EXE.
+rem - If no argument is provided, auto-pick freshest valid EXE+PCK pair.
+rem - Enforce matching .pck sidecar + timestamp safety checks.
 rem - Delegate execution + tee logging to ..\run_with_logs.bat.
 
 set "SCRIPT_DIR=%~dp0"
@@ -16,9 +16,9 @@ if not exist "%RUNNER%" (
 )
 
 if "%~1"=="" (
-    rem No argument: show MVP-only EXE menu.
-    call "%RUNNER%" --mvp-only
+    rem No argument: runner auto-selects freshest valid pair (MVP + mini_test root).
+    call "%RUNNER%"
 ) else (
-    rem Pass-through mode: caller specifies EXE path/args in MVP-only mode.
-    call "%RUNNER%" --mvp-only %*
+    rem Pass-through mode: caller specifies EXE path/args.
+    call "%RUNNER%" %*
 )

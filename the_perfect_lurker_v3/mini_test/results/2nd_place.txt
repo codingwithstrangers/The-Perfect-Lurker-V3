@@ -1,5 +1,5 @@
-N/A
-Place: N/A
-Points: 0
-Rival: N/A
-Bully: N/A
+nie_zabija
+Place: 2
+Points: 39
+Rival: xowilough
+Bully: xowilough

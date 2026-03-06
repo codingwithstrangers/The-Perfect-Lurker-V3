@@ -1,11 +1,16 @@
-timestamp,username,place,miles,laps,races_joined,rejoin_count,leave_count,ban_count,1st_place_count,2nd_place_count,3rd_place_count,yellow_victims,red_victims,yellow_attackers,red_attackers
+timestamp,username,place,miles,laps,races_joined,rejoin_count,leave_count,ban_count,1st_place_count,2nd_place_count,3rd_place_count,shield_hit_count,shield_hit_targets,shield_defense_count,shield_defense_by,shield_breaker_count,shield_breaker_targets,shield_fail_count,shield_fail_by,yellow_victims,red_victims,yellow_attackers,red_attackers
+2026-03-03 15:49,xowilough,1,2225.3,579,1,0,0,0,4,0,0,4,"nie_zabija(3), codingwithstrangers(1)",4,"codingwithstrangers(3), nie_zabija(1)",1,"nie_zabija(1)",1,"codingwithstrangers(1)","nie_zabija(4)","","","nie_zabija(1)"
+2026-03-03 15:49,nie_zabija,2,151.4,39,1,0,0,0,0,2,0,2,"codingwithstrangers(1), xowilough(1)",5,"xowilough(3), codingwithstrangers(2)",0,"",1,"xowilough(1)","","xowilough(1)","xowilough(4)",""
+2026-03-03 15:49,theidentitybooth,3,120.22,31,1,0,0,0,0,0,1,0,"",0,"",0,"",0,"","","","","codingwithstrangers(1)"
 
-timestamp,username,place,miles,laps,races_joined,rejoin_count,leave_count,ban_count,1st_place_count,2nd_place_count,3rd_place_count,yellow_victims,red_victims,yellow_attackers,red_attackers
-2026-03-01 17:19,robodom_,0,13646.49,6340,10,0,0,0,0,0,0,"","","",""
-2026-03-01 17:19,theyagich,0,9723.06,4520,7,0,0,0,0,0,0,"","","codingwithstrangers(4)",""
-2026-03-01 17:19,xowilough,0,8759.1,4070,6,0,0,0,0,0,0,"","","",""
-2026-03-01 17:19,kromantiking,0,2398.39,1114,2,0,0,0,0,0,0,"","","",""
-2026-03-01 17:19,ghostdaddy,0,2212.65,1028,2,0,0,0,0,0,0,"","","",""
-2026-03-01 17:19,theidentitybooth,0,907.78,422,4,0,0,0,0,0,0,"","theidentitybooth(4)","codingwithstrangers(2)","codingwithstrangers(4)"
-2026-03-01 17:19,sockheadrps,0,42.3,18,2,0,0,0,0,0,0,"","","codingwithstrangers(2)",""
-2026-03-01 17:19,username,0,0.0,0,0,0,0,0,0,0,0,"","","",""
+timestamp,username,place,miles,laps,races_joined,rejoin_count,leave_count,ban_count,1st_place_count,2nd_place_count,3rd_place_count,shield_hit_count,shield_hit_targets,shield_defense_count,shield_defense_by,shield_breaker_count,shield_breaker_targets,shield_fail_count,shield_fail_by,yellow_victims,red_victims,yellow_attackers,red_attackers
+2026-03-03 15:49,robodom_,0,16627.95,7114,16,0,0,0,0,0,0,0,"",4,"fossunleashed(4)",0,"",0,"","","","",""
+2026-03-03 15:49,xowilough,0,13562.6,5319,9,0,0,0,2,0,0,12,"nie_zabija(9), codingwithstrangers(3)",12,"codingwithstrangers(9), nie_zabija(3)",3,"nie_zabija(3)",3,"codingwithstrangers(3)","nie_zabija(12)","","","nie_zabija(3)"
+2026-03-03 15:49,theyagich,0,9723.06,4520,7,0,0,0,0,0,0,0,"",0,"",0,"",0,"","","","codingwithstrangers(4)",""
+2026-03-03 15:49,kromantiking,0,2398.39,1114,2,0,0,0,0,0,0,0,"",0,"",0,"",0,"","","","",""
+2026-03-03 15:49,ghostdaddy,0,2212.65,1028,2,0,0,0,0,0,0,0,"",0,"",0,"",0,"","","","",""
+2026-03-03 15:49,fossunleashed,0,1047.62,270,4,0,0,0,0,0,0,12,"codingwithstrangers(8), robodom_(4)",12,"codingwithstrangers(12)",0,"",4,"codingwithstrangers(4)","","","codingwithstrangers(8)",""
+2026-03-03 15:49,theidentitybooth,0,1028.0,453,5,0,0,0,0,0,1,0,"",0,"",0,"",0,"","","theidentitybooth(4)","codingwithstrangers(2)","codingwithstrangers(5)"
+2026-03-03 15:49,nie_zabija,0,453.4,117,3,0,0,0,0,2,0,6,"codingwithstrangers(3), xowilough(3)",15,"xowilough(9), codingwithstrangers(6)",0,"",3,"xowilough(3)","","xowilough(3)","xowilough(12)",""
+2026-03-03 15:49,sockheadrps,0,42.3,18,2,0,0,0,0,0,0,0,"",0,"",0,"",0,"","","","codingwithstrangers(2)",""
+2026-03-03 15:49,username,0,0.0,0,0,0,0,0,0,0,0,0,"",0,"",0,"",0,"","","","",""

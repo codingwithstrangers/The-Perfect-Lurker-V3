@@ -103,6 +103,7 @@ var connected : bool = false
 var user_regex : RegEx = RegEx.new()
 var twitch_restarting : bool = false
 var twitch_reconnect_attempts : int = 0
+var irc_login_state : int = 0
 
 # Token-loop state:
 # - token_expires_at_unix tracks absolute expiry time from Twitch data.
@@ -112,14 +113,19 @@ var refresh_in_progress : bool = false
 var token_expires_at_unix : int = 0
 var token_refresh_retry_count : int = 0
 var token_refresh_retry_next_unix : int = 0
+var token_loop_started_unix : int = 0
+var token_force_refresh_test_done : bool = false
 
 const USER_AGENT : String = "User-Agent: GIFT/4.1.5 (Godot Engine)"
 const TWITCH_RECONNECT_MAX_ATTEMPTS : int = 3
 const TOKEN_CHECK_INTERVAL_SEC : float = 30.0
 const TOKEN_REFRESH_MARGIN_SEC : int = 300
+const TOKEN_FORCE_TEST_REFRESH_AFTER_SEC : int = 180
 const TOKEN_REFRESH_RETRY_BASE_SEC : float = 15.0
 const TOKEN_REFRESH_RETRY_MAX_SEC : float = 300.0
 const TOKEN_REFRESH_MAX_RETRIES : int = 6
+const IRC_CONNECT_TIMEOUT_SEC : float = 15.0
+const EVENTSUB_CONNECT_TIMEOUT_SEC : float = 20.0
 
 enum RequestType {
 	EMOTE,
@@ -443,6 +449,8 @@ func _ensure_token_refresh_timer() -> void:
 
 func _start_token_loop(source: String) -> void:
 	_ensure_token_refresh_timer()
+	token_loop_started_unix = int(Time.get_unix_time_from_system())
+	token_force_refresh_test_done = false
 	if token_refresh_timer.is_stopped():
 		token_refresh_timer.start()
 	_emit_token_refresh_status("loop_started", {"source": source, "interval_sec": TOKEN_CHECK_INTERVAL_SEC})
@@ -461,7 +469,8 @@ func _emit_token_refresh_status(status: String, details: Dictionary = {}) -> voi
 # 2) Refresh via Twitch OAuth endpoint.
 # 3) Apply + persist rotated token data.
 # 4) Validate fresh access token with /oauth2/validate.
-# 5) Close IRC/EventSub sockets so app-level reconnect flow rebinds with new token.
+	# 5) Keep active IRC/EventSub sockets online after refresh.
+	#    Reconnect is only needed if Twitch later reports auth/session issues.
 func _attempt_token_refresh(reason: String) -> bool:
 	if refresh_in_progress:
 		print("[TOKEN] Refresh already in progress; skipping duplicate request (", reason, ").")
@@ -499,9 +508,6 @@ func _attempt_token_refresh(reason: String) -> bool:
 	print("[TOKEN] Refresh validated successfully for user: ", username)
 	_emit_token_refresh_status("success", {"reason": reason, "username": username})
 	user_token_valid.emit()
-	# Keep live sockets up after a successful refresh.
-	# Reconnect only if Twitch later reports auth/session issues.
-	print("[TOKEN] Refresh applied without forced reconnect.")
 	return true
 
 # Periodic token loop:
@@ -523,6 +529,15 @@ func _on_token_refresh_tick() -> void:
 		return
 
 	var now := int(Time.get_unix_time_from_system())
+
+	# Test hook: force exactly one refresh attempt 3 minutes after app token loop starts.
+	if not token_force_refresh_test_done and token_loop_started_unix > 0 and (now - token_loop_started_unix) >= TOKEN_FORCE_TEST_REFRESH_AFTER_SEC:
+		token_force_refresh_test_done = true
+		var forced_ok = await(_attempt_token_refresh("startup_3min_test"))
+		if forced_ok:
+			token_refresh_retry_count = 0
+			token_refresh_retry_next_unix = 0
+			return
 	if token_refresh_retry_next_unix > 0 and now < token_refresh_retry_next_unix:
 		return
 
@@ -652,21 +667,53 @@ func connect_to_irc() -> bool:
 	websocket = WebSocketPeer.new()
 	websocket.connect_to_url("wss://irc-ws.chat.twitch.tv:443")
 	print("Connecting to Twitch IRC.")
-	await(twitch_connected)
+	var open_start_ms := Time.get_ticks_msec()
+	while websocket != null and websocket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		await(get_tree().process_frame)
+		if websocket == null or websocket.get_ready_state() == WebSocketPeer.STATE_CLOSED:
+			print("[TWITCH] IRC socket closed before connection opened.")
+			return false
+		var open_elapsed_sec = float(Time.get_ticks_msec() - open_start_ms) / 1000.0
+		if open_elapsed_sec >= IRC_CONNECT_TIMEOUT_SEC:
+			print("[TWITCH] IRC connect timed out waiting for socket open.")
+			return false
+	irc_login_state = 0
 	send("PASS oauth:%s" % [token["access_token"]], true)
 	send("NICK " + username.to_lower())
-	var success = await(login_attempt)
+	var timeout_sec := 20.0
+	var start_ms := Time.get_ticks_msec()
+	while irc_login_state == 0:
+		await(get_tree().process_frame)
+		if websocket == null or websocket.get_ready_state() == WebSocketPeer.STATE_CLOSED:
+			irc_login_state = -1
+			break
+		var elapsed_sec = float(Time.get_ticks_msec() - start_ms) / 1000.0
+		if elapsed_sec >= timeout_sec:
+			print("[TWITCH] IRC login timed out waiting for login_attempt.")
+			irc_login_state = -1
+			break
+	var success = irc_login_state > 0
 	if (success):
 		connected = true
 	return success
 
 # Connect to Twitch EventSub. Make sure to authenticate first.
-func connect_to_eventsub(url : String = "wss://eventsub.wss.twitch.tv/ws") -> void:
+func connect_to_eventsub(url : String = "wss://eventsub.wss.twitch.tv/ws") -> bool:
+	session_id = ""
 	eventsub = WebSocketPeer.new()
 	eventsub.connect_to_url(url)
 	print("Connecting to Twitch EventSub.")
-	await(events_id)
-	events_connected.emit()
+	var start_ms := Time.get_ticks_msec()
+	while session_id == "":
+		await(get_tree().process_frame)
+		if eventsub == null or eventsub.get_ready_state() == WebSocketPeer.STATE_CLOSED:
+			print("[TWITCH] EventSub socket closed before welcome message.")
+			return false
+		var elapsed_sec = float(Time.get_ticks_msec() - start_ms) / 1000.0
+		if elapsed_sec >= EVENTSUB_CONNECT_TIMEOUT_SEC:
+			print("[TWITCH] EventSub connect timed out waiting for session welcome.")
+			return false
+	return true
 
 # Refer to https://dev.twitch.tv/docs/eventsub/eventsub-subscription-types/ for details on
 # which API versions are available and which conditions are required.
@@ -900,6 +947,7 @@ func handle_message(message : String, tags : Dictionary) -> void:
 			var info : String = msg[3].right(-1)
 			if (info == "Login authentication failed" || info == "Login unsuccessful"):
 				print_debug("Authentication failed.")
+				irc_login_state = -1
 				login_attempt.emit(false)
 			elif (info == "You don't have permission to perform that action"):
 				print_debug("No permission. Check if access token is still valid. Aborting.")
@@ -909,6 +957,7 @@ func handle_message(message : String, tags : Dictionary) -> void:
 				unhandled_message.emit(message, tags)
 		"001":
 			print_debug("Authentication successful.")
+			irc_login_state = 1
 			login_attempt.emit(true)
 		"PRIVMSG":
 			var sender_data : SenderData = SenderData.new(user_regex.search(msg[0]).get_string(), msg[2], tags)
