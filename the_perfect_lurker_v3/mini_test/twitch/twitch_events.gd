@@ -25,6 +25,8 @@ const RECONNECT_DELAY_SEC := 5.0
 const HEALTHCHECK_INTERVAL_SEC := 30.0
 const REWARD_PRESENCE_GRACE_SEC := 60.0
 const MAX_RECONNECT_ATTEMPTS := 12
+const MAX_RECONNECT_DELAY_SEC := 300.0  # 5 minutes cap for exponential backoff
+const PERIODIC_RETRY_DELAY_SEC := 600.0  # 10 minutes for periodic retries
 
 var login_client_id: String = ""
 var login_client_secret: String = ""
@@ -32,6 +34,8 @@ var login_channel: String = ""
 var reconnect_in_progress: bool = false
 var reconnect_attempt_count: int = 0
 var reconnect_exhausted: bool = false
+var periodic_retry: bool = false
+var current_reconnect_delay: float = RECONNECT_DELAY_SEC
 var reconnect_timer: Timer
 var health_timer: Timer
 var chat_sync_timer: Timer
@@ -94,6 +98,8 @@ func try_login(
 	reconnect_in_progress = false
 	reconnect_attempt_count = 0
 	reconnect_exhausted = false
+	periodic_retry = false
+	current_reconnect_delay = RECONNECT_DELAY_SEC
 	await _connect_and_subscribe()
 
 func _connect_and_subscribe() -> void:
@@ -123,6 +129,8 @@ func _connect_and_subscribe() -> void:
 	reconnect_in_progress = false
 	reconnect_attempt_count = 0
 	reconnect_exhausted = false
+	periodic_retry = false
+	current_reconnect_delay = RECONNECT_DELAY_SEC
 	_update_status_label("Connected")
 	if login_channel != "":
 		event_stream.system_message.emit("Twitch connection restored.")
@@ -148,6 +156,9 @@ func _schedule_reconnect(reason: String) -> void:
 		return
 	reconnect_in_progress = true
 	reconnect_attempt_count = 0
+	periodic_retry = false
+	current_reconnect_delay = RECONNECT_DELAY_SEC
+	reconnect_timer.wait_time = current_reconnect_delay
 	_update_status_label("Reconnecting...")
 	print("[TWITCH] Scheduling reconnect: ", reason)
 	if reconnect_timer.is_stopped():
@@ -155,19 +166,34 @@ func _schedule_reconnect(reason: String) -> void:
 
 func _on_reconnect_timer_timeout() -> void:
 	if reconnect_attempt_count >= MAX_RECONNECT_ATTEMPTS:
-		reconnect_in_progress = false
-		reconnect_exhausted = true
-		_update_status_label("Disconnected (Retry Limit)")
-		print("[TWITCH] Reconnect halted after ", MAX_RECONNECT_ATTEMPTS, " failed attempts.")
-		if login_channel != "":
-			event_stream.system_message.emit("Twitch reconnect stopped after " + str(MAX_RECONNECT_ATTEMPTS) + " attempts. Press Login to retry.")
+		if not periodic_retry:
+			# Switch to periodic retry mode
+			periodic_retry = true
+			reconnect_attempt_count = 0
+			current_reconnect_delay = PERIODIC_RETRY_DELAY_SEC
+			reconnect_timer.wait_time = current_reconnect_delay
+			reconnect_timer.start()
+			_update_status_label("Disconnected (Periodic Retry)")
+			print("[TWITCH] Switching to periodic retry every ", PERIODIC_RETRY_DELAY_SEC, " seconds.")
+			if login_channel != "":
+				event_stream.system_message.emit("Twitch reconnect switched to periodic retry. Will try again in " + str(PERIODIC_RETRY_DELAY_SEC) + " seconds.")
+		else:
+			# In periodic mode, reset attempt count and try again
+			reconnect_attempt_count = 0
+			print("[TWITCH] Periodic retry attempt...")
+			_update_status_label("Reconnecting...")
+			await _connect_and_subscribe()
 		return
 
 	reconnect_attempt_count += 1
-	print("[TWITCH] Attempting reconnect (", reconnect_attempt_count, "/", MAX_RECONNECT_ATTEMPTS, ")...")
+	print("[TWITCH] Attempting reconnect (", reconnect_attempt_count, "/", MAX_RECONNECT_ATTEMPTS, ") with delay ", current_reconnect_delay, "s...")
 	_update_status_label("Reconnecting...")
 	await _connect_and_subscribe()
 	# If reconnect flag is still set (partial failure), keep retrying.
+	if reconnect_in_progress:
+		current_reconnect_delay = min(current_reconnect_delay * 2.0, MAX_RECONNECT_DELAY_SEC)
+		reconnect_timer.wait_time = current_reconnect_delay
+		reconnect_timer.start()
 	if reconnect_in_progress:
 		reconnect_timer.start()
 
