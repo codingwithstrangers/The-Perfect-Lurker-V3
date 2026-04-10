@@ -15,13 +15,14 @@ for /f %%i in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd_HHmmss
 set "LOG_FILE=%LOG_DIR%\exe_runtime_%STAMP%.log"
 
 if "%~1"=="" (
-    rem Pick freshest EXE that has a matching PCK within 10 minutes.
-    set "EXE_PATH="
-    for /f "usebackq delims=" %%I in (`powershell -NoProfile -Command "$base='%BASE_DIR%'; $dirs=@((Join-Path $base 'MVP'), $base); $pairs = foreach($d in $dirs){ if(Test-Path $d){ Get-ChildItem -Path $d -Filter *.exe -File | ForEach-Object { $pck=[System.IO.Path]::ChangeExtension($_.FullName,'.pck'); if(Test-Path $pck){ $p=Get-Item -LiteralPath $pck; [pscustomobject]@{ Exe=$_.FullName; ExeTime=$_.LastWriteTimeUtc; PairAge=[math]::Abs(($_.LastWriteTimeUtc-$p.LastWriteTimeUtc).TotalSeconds) } } } } }; $valid=$pairs | Where-Object { $_.PairAge -le 600 } | Sort-Object ExeTime -Descending; if($valid.Count -gt 0){ $valid[0].Exe }"`) do (
-        set "EXE_PATH=%%~I"
+    rem Collect all valid EXE+PCK pairs within 10 minutes, sorted by freshness.
+    set "EXE_COUNT=0"
+    for /f "usebackq delims=" %%I in (`powershell -NoProfile -Command "$base='%BASE_DIR%'; $dirs=@((Join-Path $base 'MVP'), $base); $pairs = foreach($d in $dirs){ if(Test-Path $d){ Get-ChildItem -Path $d -Filter *.exe -File | ForEach-Object { $pck=[System.IO.Path]::ChangeExtension($_.FullName,'.pck'); if(Test-Path $pck){ $p=Get-Item -LiteralPath $pck; [pscustomobject]@{ Exe=$_.FullName; ExeTime=$_.LastWriteTimeUtc; PairAge=[math]::Abs(($_.LastWriteTimeUtc-$p.LastWriteTimeUtc).TotalSeconds) } } } } }; $valid=$pairs | Where-Object { $_.PairAge -le 600 } | Sort-Object ExeTime -Descending; $valid | ForEach-Object { $_.Exe } "`) do (
+        set /a "EXE_COUNT+=1"
+        set "EXE_!EXE_COUNT!=%%~I"
     )
 
-    if not defined EXE_PATH (
+    if !EXE_COUNT! equ 0 (
         echo No valid EXE+PCK pair found in:
         echo   %BASE_DIR%MVP
         echo   %BASE_DIR%
@@ -30,7 +31,24 @@ if "%~1"=="" (
         pause
         exit /b 1
     )
-    echo Auto-selected freshest valid pair: %EXE_PATH%
+
+    if !EXE_COUNT! equ 1 (
+        set "EXE_PATH=!EXE_1!"
+        echo Auto-selected only valid pair: !EXE_PATH!
+    ) else (
+        echo Multiple valid EXE+PCK pairs found. Choose one:
+        for /l %%i in (1,1,!EXE_COUNT!) do (
+            echo %%i. !EXE_%%i!
+        )
+        set /p "CHOICE=Enter number (1-!EXE_COUNT!): "
+        if "!CHOICE!"=="" set "CHOICE=1"
+        set "EXE_PATH=!EXE_%CHOICE%!"
+        if not defined EXE_PATH (
+            echo Invalid choice. Defaulting to freshest.
+            set "EXE_PATH=!EXE_1!"
+        )
+        echo Selected: !EXE_PATH!
+    )
 ) else (
     set "EXE_PATH=%~1"
     if not exist "%EXE_PATH%" (

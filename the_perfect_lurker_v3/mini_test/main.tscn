@@ -366,12 +366,9 @@ missle_textures = Array[Texture2D]([ExtResource("21_1u8w0"), ExtResource("23_xuq
 [node name="twitch_events" type="Node" parent="managers"]
 script = ExtResource("16_m577l")
 text_commands_enabled = true
-chat_sync_interval_seconds = null
 command_prefixes = Array[String]([])
-chat_timeout_ms = null
 scopes = Array[String](["chat:edit", "chat:read", "channel:read:redemptions", "channel:read:subscriptions"])
 disk_cache = true
-disk_cache_path = null
 
 [node name="runtime_logger" type="Node" parent="managers"]
 script = ExtResource("27_2h0l2")
