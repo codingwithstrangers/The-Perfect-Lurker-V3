@@ -37,6 +37,18 @@ var reconnect_exhausted: bool = false
 var periodic_retry: bool = false
 var current_reconnect_delay: float = RECONNECT_DELAY_SEC
 var reconnect_timer: Timer
+var irc_reconnect_in_progress: bool = false
+var irc_reconnect_attempt_count: int = 0
+var irc_reconnect_exhausted: bool = false
+var irc_periodic_retry: bool = false
+var irc_current_reconnect_delay: float = RECONNECT_DELAY_SEC
+var irc_reconnect_timer: Timer
+var eventsub_reconnect_in_progress: bool = false
+var eventsub_reconnect_attempt_count: int = 0
+var eventsub_reconnect_exhausted: bool = false
+var eventsub_periodic_retry: bool = false
+var eventsub_current_reconnect_delay: float = RECONNECT_DELAY_SEC
+var eventsub_reconnect_timer: Timer
 var health_timer: Timer
 var chat_sync_timer: Timer
 var status_layer: CanvasLayer
@@ -70,6 +82,18 @@ func _ready() -> void:
 	reconnect_timer.timeout.connect(_on_reconnect_timer_timeout)
 	add_child(reconnect_timer)
 
+	irc_reconnect_timer = Timer.new()
+	irc_reconnect_timer.one_shot = true
+	irc_reconnect_timer.wait_time = RECONNECT_DELAY_SEC
+	irc_reconnect_timer.timeout.connect(_on_irc_reconnect_timer_timeout)
+	add_child(irc_reconnect_timer)
+
+	eventsub_reconnect_timer = Timer.new()
+	eventsub_reconnect_timer.one_shot = true
+	eventsub_reconnect_timer.wait_time = RECONNECT_DELAY_SEC
+	eventsub_reconnect_timer.timeout.connect(_on_eventsub_reconnect_timer_timeout)
+	add_child(eventsub_reconnect_timer)
+
 	health_timer = Timer.new()
 	health_timer.one_shot = false
 	health_timer.wait_time = HEALTHCHECK_INTERVAL_SEC
@@ -100,6 +124,16 @@ func try_login(
 	reconnect_exhausted = false
 	periodic_retry = false
 	current_reconnect_delay = RECONNECT_DELAY_SEC
+	irc_reconnect_in_progress = false
+	irc_reconnect_attempt_count = 0
+	irc_reconnect_exhausted = false
+	irc_periodic_retry = false
+	irc_current_reconnect_delay = RECONNECT_DELAY_SEC
+	eventsub_reconnect_in_progress = false
+	eventsub_reconnect_attempt_count = 0
+	eventsub_reconnect_exhausted = false
+	eventsub_periodic_retry = false
+	eventsub_current_reconnect_delay = RECONNECT_DELAY_SEC
 	await _connect_and_subscribe()
 
 func _connect_and_subscribe() -> void:
@@ -110,21 +144,8 @@ func _connect_and_subscribe() -> void:
 		return
 	_update_status_label("Connecting...")
 	await(authenticate(login_client_id, login_client_secret))
-	var success = await(connect_to_irc())
-	if not success:
-		_schedule_reconnect("IRC login failed")
-		return
-
-	request_caps()
-	if not channels.has(login_channel):
-		join_channel(login_channel)
-		await(channel_data_received)
-	_request_chat_names_refresh()
-
-	var eventsub_ok = await(connect_to_eventsub())
-	if not eventsub_ok:
-		_schedule_reconnect("EventSub connect failed")
-		return
+	await _connect_irc_only()
+	await _connect_eventsub_only()
 	await _subscribe_core_events()
 	reconnect_in_progress = false
 	reconnect_attempt_count = 0
@@ -134,6 +155,35 @@ func _connect_and_subscribe() -> void:
 	_update_status_label("Connected")
 	if login_channel != "":
 		event_stream.system_message.emit("Twitch connection restored.")
+
+func _connect_irc_only() -> void:
+	var success = await(connect_to_irc())
+	if not success:
+		irc_reconnect_in_progress = true
+		return
+	request_caps()
+	if not channels.has(login_channel):
+		join_channel(login_channel)
+		await(channel_data_received)
+	_request_chat_names_refresh()
+	irc_reconnect_in_progress = false
+	irc_reconnect_attempt_count = 0
+	irc_reconnect_exhausted = false
+	irc_periodic_retry = false
+	irc_current_reconnect_delay = RECONNECT_DELAY_SEC
+	print("[TWITCH] IRC connected successfully.")
+
+func _connect_eventsub_only() -> void:
+	var eventsub_ok = await(connect_to_eventsub())
+	if not eventsub_ok:
+		eventsub_reconnect_in_progress = true
+		return
+	eventsub_reconnect_in_progress = false
+	eventsub_reconnect_attempt_count = 0
+	eventsub_reconnect_exhausted = false
+	eventsub_periodic_retry = false
+	eventsub_current_reconnect_delay = RECONNECT_DELAY_SEC
+	print("[TWITCH] EventSub connected successfully.")
 
 func _subscribe_core_events() -> void:
 	# Refer to https://dev.twitch.tv/docs/eventsub/eventsub-subscription-types/ for details on
@@ -163,6 +213,42 @@ func _schedule_reconnect(reason: String) -> void:
 	print("[TWITCH] Scheduling reconnect: ", reason)
 	if reconnect_timer.is_stopped():
 		reconnect_timer.start()
+
+func _schedule_irc_reconnect(reason: String) -> void:
+	# Separate IRC reconnect scheduling.
+	_load_login_from_settings_if_needed()
+	if login_client_id == "" or login_client_secret == "" or login_channel == "":
+		return
+	if irc_reconnect_exhausted:
+		return
+	if irc_reconnect_in_progress:
+		return
+	irc_reconnect_in_progress = true
+	irc_reconnect_attempt_count = 0
+	irc_periodic_retry = false
+	irc_current_reconnect_delay = RECONNECT_DELAY_SEC
+	irc_reconnect_timer.wait_time = irc_current_reconnect_delay
+	print("[TWITCH] Scheduling IRC reconnect: ", reason)
+	if irc_reconnect_timer.is_stopped():
+		irc_reconnect_timer.start()
+
+func _schedule_eventsub_reconnect(reason: String) -> void:
+	# Separate EventSub reconnect scheduling.
+	_load_login_from_settings_if_needed()
+	if login_client_id == "" or login_client_secret == "" or login_channel == "":
+		return
+	if eventsub_reconnect_exhausted:
+		return
+	if eventsub_reconnect_in_progress:
+		return
+	eventsub_reconnect_in_progress = true
+	eventsub_reconnect_attempt_count = 0
+	eventsub_periodic_retry = false
+	eventsub_current_reconnect_delay = RECONNECT_DELAY_SEC
+	eventsub_reconnect_timer.wait_time = eventsub_current_reconnect_delay
+	print("[TWITCH] Scheduling EventSub reconnect: ", reason)
+	if eventsub_reconnect_timer.is_stopped():
+		eventsub_reconnect_timer.start()
 
 func _on_reconnect_timer_timeout() -> void:
 	if reconnect_attempt_count >= MAX_RECONNECT_ATTEMPTS:
@@ -197,34 +283,77 @@ func _on_reconnect_timer_timeout() -> void:
 	if reconnect_in_progress:
 		reconnect_timer.start()
 
+func _on_irc_reconnect_timer_timeout() -> void:
+	if irc_reconnect_attempt_count >= MAX_RECONNECT_ATTEMPTS:
+		if not irc_periodic_retry:
+			irc_periodic_retry = true
+			irc_reconnect_attempt_count = 0
+			irc_current_reconnect_delay = PERIODIC_RETRY_DELAY_SEC
+			irc_reconnect_timer.wait_time = irc_current_reconnect_delay
+			irc_reconnect_timer.start()
+			print("[TWITCH] IRC switching to periodic retry every ", PERIODIC_RETRY_DELAY_SEC, " seconds.")
+		else:
+			irc_reconnect_attempt_count = 0
+			print("[TWITCH] IRC periodic retry attempt...")
+			await _connect_irc_only()
+		return
+
+	irc_reconnect_attempt_count += 1
+	print("[TWITCH] Attempting IRC reconnect (", irc_reconnect_attempt_count, "/", MAX_RECONNECT_ATTEMPTS, ") with delay ", irc_current_reconnect_delay, "s...")
+	await _connect_irc_only()
+	if irc_reconnect_in_progress:
+		irc_current_reconnect_delay = min(irc_current_reconnect_delay * 2.0, MAX_RECONNECT_DELAY_SEC)
+		irc_reconnect_timer.wait_time = irc_current_reconnect_delay
+		irc_reconnect_timer.start()
+
+func _on_eventsub_reconnect_timer_timeout() -> void:
+	if eventsub_reconnect_attempt_count >= MAX_RECONNECT_ATTEMPTS:
+		if not eventsub_periodic_retry:
+			eventsub_periodic_retry = true
+			eventsub_reconnect_attempt_count = 0
+			eventsub_current_reconnect_delay = PERIODIC_RETRY_DELAY_SEC
+			eventsub_reconnect_timer.wait_time = eventsub_current_reconnect_delay
+			eventsub_reconnect_timer.start()
+			print("[TWITCH] EventSub switching to periodic retry every ", PERIODIC_RETRY_DELAY_SEC, " seconds.")
+		else:
+			eventsub_reconnect_attempt_count = 0
+			print("[TWITCH] EventSub periodic retry attempt...")
+			await _connect_eventsub_only()
+		return
+
+	eventsub_reconnect_attempt_count += 1
+	print("[TWITCH] Attempting EventSub reconnect (", eventsub_reconnect_attempt_count, "/", MAX_RECONNECT_ATTEMPTS, ") with delay ", eventsub_current_reconnect_delay, "s...")
+	await _connect_eventsub_only()
+	if eventsub_reconnect_in_progress:
+		eventsub_current_reconnect_delay = min(eventsub_current_reconnect_delay * 2.0, MAX_RECONNECT_DELAY_SEC)
+		eventsub_reconnect_timer.wait_time = eventsub_current_reconnect_delay
+		eventsub_reconnect_timer.start()
+
 func _healthcheck_connection() -> void:
 	# Periodic watchdog for both IRC and EventSub sockets.
 	_load_login_from_settings_if_needed()
 	if login_client_id == "" or login_channel == "":
 		return
-	if reconnect_in_progress:
-		return
 	if websocket == null or websocket.get_ready_state() != WebSocketPeer.STATE_OPEN or not connected:
-		_schedule_reconnect("IRC not connected")
-		return
+		_schedule_irc_reconnect("IRC not connected")
 	if eventsub == null or eventsub.get_ready_state() != WebSocketPeer.STATE_OPEN or not eventsub_connected:
-		_schedule_reconnect("EventSub not connected")
+		_schedule_eventsub_reconnect("EventSub not connected")
 
 func _on_twitch_disconnected() -> void:
-	_update_status_label("Disconnected")
-	_schedule_reconnect("IRC disconnected")
+	_update_status_label("IRC Disconnected")
+	_schedule_irc_reconnect("IRC disconnected")
 
 func _on_twitch_unavailable() -> void:
-	_update_status_label("Disconnected")
-	_schedule_reconnect("IRC unavailable")
+	_update_status_label("IRC Disconnected")
+	_schedule_irc_reconnect("IRC unavailable")
 
 func _on_events_disconnected() -> void:
-	_update_status_label("Disconnected")
-	_schedule_reconnect("EventSub disconnected")
+	_update_status_label("EventSub Disconnected")
+	_schedule_eventsub_reconnect("EventSub disconnected")
 
 func _on_events_unavailable() -> void:
-	_update_status_label("Disconnected")
-	_schedule_reconnect("EventSub unavailable")
+	_update_status_label("EventSub Disconnected")
+	_schedule_eventsub_reconnect("EventSub unavailable")
 
 func _on_user_token_invalid() -> void:
 	# Token loop can raise this after repeated refresh failures.
