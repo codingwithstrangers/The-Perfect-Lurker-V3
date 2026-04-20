@@ -158,6 +158,19 @@ enum WhereFlag {
 	WHISPER = 2
 }
 
+# Chat connection states for reliable message delivery
+enum ChatState {
+	DISCONNECTED,
+	CONNECTING,
+	AUTHENTICATING,
+	CONNECTED,
+	RECONNECTING
+}
+
+var chat_state : ChatState = ChatState.DISCONNECTED
+var chat_reconnect_timer : Timer
+var pending_chat_commands : Array[String] = []
+
 func _init():
 	user_regex.compile("(?<=!)[\\w]*(?=@)")
 	if (disk_cache):
@@ -447,6 +460,14 @@ func _ensure_token_refresh_timer() -> void:
 	token_refresh_timer.timeout.connect(_on_token_refresh_tick)
 	add_child(token_refresh_timer)
 
+func _ensure_chat_reconnect_timer() -> void:
+	if chat_reconnect_timer != null:
+		return
+	chat_reconnect_timer = Timer.new()
+	chat_reconnect_timer.one_shot = true
+	chat_reconnect_timer.timeout.connect(_on_chat_reconnect_timeout)
+	add_child(chat_reconnect_timer)
+
 func _start_token_loop(source: String) -> void:
 	_ensure_token_refresh_timer()
 	token_loop_started_unix = int(Time.get_unix_time_from_system())
@@ -508,6 +529,13 @@ func _attempt_token_refresh(reason: String) -> bool:
 	print("[TOKEN] Refresh validated successfully for user: ", username)
 	_emit_token_refresh_status("success", {"reason": reason, "username": username})
 	user_token_valid.emit()
+	
+	# Re-authenticate IRC connection with new token if connected
+	if chat_state == ChatState.CONNECTED and websocket and websocket.get_ready_state() == WebSocketPeer.STATE_OPEN:
+		print_debug("Re-authenticating IRC with refreshed token...")
+		send("PASS oauth:%s" % [token["access_token"]], true)
+		send("NICK " + username.to_lower())
+	
 	return true
 
 # Periodic token loop:
@@ -572,42 +600,80 @@ func _on_token_refresh_tick() -> void:
 	print("[TOKEN] Refresh failed; retry #", token_refresh_retry_count, " in ", retry_delay, "s.")
 	_emit_token_refresh_status("retry_scheduled", {"retry": token_refresh_retry_count, "delay_sec": retry_delay})
 
+func _on_chat_reconnect_timeout() -> void:
+	if chat_state == ChatState.RECONNECTING:
+		chat_state = ChatState.CONNECTING
+		_attempt_chat_connect()
+
+func _attempt_chat_connect() -> void:
+	if websocket:
+		websocket.close()
+	websocket = WebSocketPeer.new()
+	websocket.connect_to_url("wss://irc-ws.chat.twitch.tv:443")
+	print("Attempting IRC connection...")
+
+func _schedule_chat_reconnect() -> void:
+	_ensure_chat_reconnect_timer()
+	chat_reconnect_timer.wait_time = 5.0  # Simple fixed delay, could be made exponential
+	if chat_reconnect_timer.is_stopped():
+		chat_reconnect_timer.start()
+
+func _flush_pending_chat_commands() -> void:
+	for cmd in pending_chat_commands:
+		chat_queue.append(cmd)
+	pending_chat_commands.clear()
+
 func _process(delta : float) -> void:
-	if (websocket):
-		websocket.poll()
-		var state := websocket.get_ready_state()
-		match state:
-			WebSocketPeer.STATE_OPEN:
-				if (!connected):
-					twitch_connected.emit()
-					connected = true
-					twitch_reconnect_attempts = 0
-					print_debug("Connected to Twitch.")
-				else:
-					while (websocket.get_available_packet_count()):
-						data_received(websocket.get_packet())
-					if (!chat_queue.is_empty() && (last_msg + chat_timeout_ms) <= Time.get_ticks_msec()):
-						send(chat_queue.pop_front())
-						last_msg = Time.get_ticks_msec()
-			WebSocketPeer.STATE_CLOSED:
-				if (!connected):
-					twitch_reconnect_attempts = 0
-					twitch_unavailable.emit()
-					print_debug("Could not connect to Twitch.")
-					websocket = null
-				elif(twitch_restarting):
-					print_debug("Reconnect requested; deferring to TwitchEvents scheduler.")
-					connected = false
-					twitch_disconnected.emit()
-					websocket = null
-					twitch_restarting = false
-					twitch_reconnect_attempts = 0
-				else:
-					print_debug("Disconnected from Twitch.")
-					twitch_disconnected.emit()
-					connected = false
-					twitch_reconnect_attempts = 0
-					print_debug("Connection closed! [%s]: %s"%[websocket.get_close_code(), websocket.get_close_reason()])
+	# Handle chat state machine
+	match chat_state:
+		ChatState.DISCONNECTED:
+			pass  # Wait for manual connect
+		ChatState.CONNECTING:
+			if websocket and websocket.get_ready_state() == WebSocketPeer.STATE_OPEN:
+				chat_state = ChatState.AUTHENTICATING
+				irc_login_state = 0
+				send("PASS oauth:%s" % [token["access_token"]], true)
+				send("NICK " + username.to_lower())
+				print_debug("IRC connected, authenticating...")
+			elif websocket and websocket.get_ready_state() == WebSocketPeer.STATE_CLOSED:
+				# Connection failed, schedule reconnect
+				chat_state = ChatState.RECONNECTING
+				_schedule_chat_reconnect()
+		ChatState.AUTHENTICATING:
+			if irc_login_state == 1:
+				chat_state = ChatState.CONNECTED
+				connected = true
+				twitch_connected.emit()
+				print_debug("IRC authenticated and connected.")
+				# Send any pending commands
+				_flush_pending_chat_commands()
+			elif irc_login_state == -1 or (websocket and websocket.get_ready_state() == WebSocketPeer.STATE_CLOSED):
+				chat_state = ChatState.RECONNECTING
+				connected = false
+				twitch_unavailable.emit()
+				print_debug("IRC authentication failed or connection lost.")
+				_schedule_chat_reconnect()
+		ChatState.CONNECTED:
+			if websocket and websocket.get_ready_state() == WebSocketPeer.STATE_OPEN:
+				while websocket.get_available_packet_count():
+					data_received(websocket.get_packet())
+				# Send queued messages with rate limiting
+				if not chat_queue.is_empty() and (last_msg + chat_timeout_ms) <= Time.get_ticks_msec():
+					send(chat_queue.pop_front())
+					last_msg = Time.get_ticks_msec()
+			else:
+				# Connection lost - preserve queued messages
+				pending_chat_commands.append_array(chat_queue)
+				chat_queue.clear()
+				chat_state = ChatState.RECONNECTING
+				connected = false
+				twitch_disconnected.emit()
+				print_debug("IRC connection lost, scheduling reconnect...")
+				_schedule_chat_reconnect()
+		ChatState.RECONNECTING:
+			pass  # Wait for reconnect timer
+
+	# Handle EventSub (unchanged)
 	if (eventsub):
 		eventsub.poll()
 		var state := eventsub.get_ready_state()
@@ -664,38 +730,11 @@ func process_event(data : PackedByteArray) -> void:
 
 # Connect to Twitch IRC. Make sure to authenticate first.
 func connect_to_irc() -> bool:
-	websocket = WebSocketPeer.new()
-	websocket.connect_to_url("wss://irc-ws.chat.twitch.tv:443")
-	print("Connecting to Twitch IRC.")
-	var open_start_ms := Time.get_ticks_msec()
-	while websocket != null and websocket.get_ready_state() != WebSocketPeer.STATE_OPEN:
-		await(get_tree().process_frame)
-		if websocket == null or websocket.get_ready_state() == WebSocketPeer.STATE_CLOSED:
-			print("[TWITCH] IRC socket closed before connection opened.")
-			return false
-		var open_elapsed_sec = float(Time.get_ticks_msec() - open_start_ms) / 1000.0
-		if open_elapsed_sec >= IRC_CONNECT_TIMEOUT_SEC:
-			print("[TWITCH] IRC connect timed out waiting for socket open.")
-			return false
-	irc_login_state = 0
-	send("PASS oauth:%s" % [token["access_token"]], true)
-	send("NICK " + username.to_lower())
-	var timeout_sec := 20.0
-	var start_ms := Time.get_ticks_msec()
-	while irc_login_state == 0:
-		await(get_tree().process_frame)
-		if websocket == null or websocket.get_ready_state() == WebSocketPeer.STATE_CLOSED:
-			irc_login_state = -1
-			break
-		var elapsed_sec = float(Time.get_ticks_msec() - start_ms) / 1000.0
-		if elapsed_sec >= timeout_sec:
-			print("[TWITCH] IRC login timed out waiting for login_attempt.")
-			irc_login_state = -1
-			break
-	var success = irc_login_state > 0
-	if (success):
-		connected = true
-	return success
+	if chat_state != ChatState.DISCONNECTED:
+		return false  # Already connecting or connected
+	chat_state = ChatState.CONNECTING
+	_attempt_chat_connect()
+	return true
 
 # Connect to Twitch EventSub. Make sure to authenticate first.
 func connect_to_eventsub(url : String = "wss://eventsub.wss.twitch.tv/ws") -> bool:
@@ -753,16 +792,28 @@ func send(text : String, token : bool = false) -> void:
 # Sends a chat message to a channel. Defaults to the only connected channel.
 func chat(message : String, channel : String = ""):
 	var keys : Array = channels.keys()
+	var target_channel : String = ""
+	
 	if(channel != ""):
 		if (channel.begins_with("#")):
 			channel = channel.right(-1)
-		chat_queue.append("PRIVMSG #" + channel + " :" + message + "\r\n")
-		chat_message.emit(SenderData.new(last_state[channels.keys()[0]]["display-name"], channel, last_state[channels.keys()[0]]), message)
+		target_channel = channel
 	elif(keys.size() == 1):
-		chat_queue.append("PRIVMSG #" + channels.keys()[0] + " :" + message + "\r\n")
-		chat_message.emit(SenderData.new(last_state[channels.keys()[0]]["display-name"], channels.keys()[0], last_state[channels.keys()[0]]), message)
+		target_channel = channels.keys()[0]
 	else:
 		print_debug("No channel specified.")
+		return
+	
+	var irc_message = "PRIVMSG #" + target_channel + " :" + message + "\r\n"
+	
+	if chat_state == ChatState.CONNECTED:
+		chat_queue.append(irc_message)
+	else:
+		pending_chat_commands.append(irc_message)
+		print_debug("Chat not connected, queuing message.")
+	
+	# Emit the message event (this can happen even if not connected)
+	chat_message.emit(SenderData.new(last_state.get(target_channel, {}).get("display-name", username), target_channel, last_state.get(target_channel, {})), message)
 
 # Send a whisper message to a user by username. Returns a empty dictionary on success. If it failed, "status" will be present in the Dictionary.
 func whisper(message : String, target : String) -> Dictionary:
@@ -968,11 +1019,13 @@ func handle_message(message : String, tags : Dictionary) -> void:
 			handle_command(sender_data, msg[3].split(" ", true, 1), true)
 			whisper_message.emit(sender_data, msg[3].right(-1))
 		"RECONNECT":
-			# Let app-level reconnect workflow own reconnect attempts.
-			twitch_restarting = false
-			twitch_reconnect_attempts = 0
-			if websocket != null:
-				websocket.close()
+			# Twitch requested reconnect - transition to reconnecting state
+			print_debug("Twitch requested RECONNECT.")
+			if chat_state == ChatState.CONNECTED:
+				chat_state = ChatState.RECONNECTING
+				connected = false
+				twitch_reconnect.emit()
+				_schedule_chat_reconnect()
 		"USERSTATE", "ROOMSTATE":
 			var room = msg[2].right(-1)
 			if (!last_state.has(room)):

@@ -373,9 +373,8 @@ disk_cache = true
 [node name="runtime_logger" type="Node" parent="managers"]
 script = ExtResource("27_2h0l2")
 
-[node name="track_manager" type="Node" parent="managers" node_paths=PackedStringArray("select_track")]
+[node name="track_manager" type="Node" parent="managers"]
 script = ExtResource("18_cegan")
-select_track = NodePath("../../track2")
 
 [node name="ui_root" type="MarginContainer" parent="."]
 anchors_preset = 15

@@ -14,7 +14,6 @@ signal track_selected(track_node: Node2D)
 
 @onready var event_stream: EventStream = $'../event_stream'
 @onready var lurker_gang: LurkerGang = $"../lurker_gang"
-@export var select_track: Node2D
 var track: Path2D
 var pit: Path2D
 #this will get the tracks from the list and handle the turning on and off of tracks 
@@ -28,12 +27,31 @@ func _ready() -> void:
 	event_stream.send_to_track.connect(self.send_to_track)
 	#event_stream.leave_the_pit.connect(self.send_to_track)
 	
-	# If a track is already exported, use it. Otherwise wait for selection via UI
-	if select_track != null:
-		_initialize_track(select_track)
-	else:
-		# Show track selection UI
-		_show_track_selection_ui()
+	_populate_tracks()
+	set_process_input(true)
+	_show_track_selection_ui()
+
+func _populate_tracks() -> void:
+	if tracks.is_empty():
+		tracks = [
+			get_node("../../track2"),
+			get_node("../../track3"),
+			get_node("../../track")
+		]
+
+func _input(event: InputEvent) -> void:
+	if track_selection_ui and track_selection_ui.visible:
+		if event is InputEventKey and event.pressed and not event.echo:
+			var num = -1
+			if event.keycode == KEY_1 or event.keycode == KEY_KP_1:
+				num = 0
+			elif event.keycode == KEY_2 or event.keycode == KEY_KP_2:
+				num = 1
+			elif event.keycode == KEY_3 or event.keycode == KEY_KP_3:
+				num = 2
+			if num >= 0 and num < tracks.size():
+				_on_track_button_pressed(tracks[num])
+				get_viewport().set_input_as_handled()
 
 func _show_track_selection_ui() -> void:
 	# Get or create the track selection UI
@@ -85,7 +103,6 @@ func _create_track_selection_ui() -> Control:
 	return ui
 
 func _on_track_button_pressed(track_node: Node2D) -> void:
-	select_track = track_node
 	_initialize_track(track_node)
 	if track_selection_ui:
 		track_selection_ui.visible = false
@@ -110,7 +127,7 @@ func _initialize_track(track_node: Node2D) -> void:
 func send_to_pit(username: String) -> void:
 	# Send lurker to pit_lane area instead of pit track
 	var lurker = lurker_gang.lurkers[username]
-	var pit_lane = select_track.find_child('pit_lane')
+	var pit_lane = track.get_parent().find_child('pit_lane')
 	if pit_lane:
 		# Position lurker at pit_lane location with random offset to avoid overlapping
 		var random_offset = Vector2(randf_range(-50, 50), randf_range(-50, 50))

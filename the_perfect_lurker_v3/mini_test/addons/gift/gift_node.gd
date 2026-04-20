@@ -950,9 +950,10 @@ func handle_message(message : String, tags : Dictionary) -> void:
 				irc_login_state = -1
 				login_attempt.emit(false)
 			elif (info == "You don't have permission to perform that action"):
-				print_debug("No permission. Check if access token is still valid. Aborting.")
-				user_token_invalid.emit()
-				set_process(false)
+				print_debug("No permission for IRC action. Keeping IRC alive and ignoring this notice.")
+				# Do not kill IRC or treat this as a full token invalidation. IRC should remain connected
+				# and keep processing commands even if a single message failed due to permission.
+				return
 			else:
 				unhandled_message.emit(message, tags)
 		"001":
