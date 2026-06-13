@@ -162,9 +162,11 @@ func _connect_irc_only() -> void:
 		irc_reconnect_in_progress = true
 		return
 	request_caps()
-	if not channels.has(login_channel):
-		join_channel(login_channel)
-		await(channel_data_received)
+	# Always rejoin the configured channel after reconnecting.
+	# Channels may still be tracked locally from before the disconnect,
+	# but the IRC session itself may no longer be in that channel.
+	join_channel(login_channel)
+	await(channel_data_received)
 	_request_chat_names_refresh()
 	irc_reconnect_in_progress = false
 	irc_reconnect_attempt_count = 0

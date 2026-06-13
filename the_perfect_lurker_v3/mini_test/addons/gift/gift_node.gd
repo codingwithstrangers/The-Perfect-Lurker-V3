@@ -598,12 +598,14 @@ func _process(delta : float) -> void:
 				elif(twitch_restarting):
 					print_debug("Reconnect requested; deferring to TwitchEvents scheduler.")
 					connected = false
+					channels.clear()
 					twitch_disconnected.emit()
 					websocket = null
 					twitch_restarting = false
 					twitch_reconnect_attempts = 0
 				else:
 					print_debug("Disconnected from Twitch.")
+					channels.clear()
 					twitch_disconnected.emit()
 					connected = false
 					twitch_reconnect_attempts = 0

@@ -43,7 +43,7 @@ if "%~1"=="" (
         echo 3. Track 3 ^(track5mvp - latest^)
         set /p "CHOICE=Enter track number (1-3): "
         if "!CHOICE!"=="" set "CHOICE=1"
-        set "EXE_PATH=!EXE_!CHOICE!!"
+        call set "EXE_PATH=%%EXE_!CHOICE!%%"
         if not defined EXE_PATH (
             echo Invalid choice. Defaulting to Track 1.
             set "EXE_PATH=!EXE_1!"
