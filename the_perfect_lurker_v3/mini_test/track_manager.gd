@@ -58,7 +58,7 @@ func _show_track_selection_ui() -> void:
 	track_selection_ui = get_tree().root.get_node_or_null("root/track_selection_ui")
 	if track_selection_ui == null:
 		track_selection_ui = _create_track_selection_ui()
-		get_tree().root.get_node("root").add_child(track_selection_ui)
+		get_tree().root.get_node("root").call_deferred("add_child", track_selection_ui)
 	
 	track_selection_ui.visible = true
 	#track_selected.connect(_on_track_selected)

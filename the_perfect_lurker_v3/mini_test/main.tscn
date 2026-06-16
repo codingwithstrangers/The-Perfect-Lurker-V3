@@ -33,15 +33,15 @@
 
 [sub_resource type="Curve2D" id="Curve2D_cegan"]
 _data = {
-"points": PackedVector2Array(-60.599, 1.76293, 60.599, -1.76293, 695, 760, 0, 0, 0, 0, 741, 749, 0, 0, 0, 0, 745, 427, 44.5455, 60.9091, -44.5455, -60.9091, 733, 57, 0, 0, 0, 0, 374, 54, 72.6, -67.76, -72.6, 67.76, 59, 62, 0, 0, 0, 0, 45, 507, -57.9784, -67.6414, 57.9784, 67.6414, 62, 739, 0, 0, 0, 0, 187, 734, 0, 0, 0, 0, 215, 660, 0, 0, 0, 0, 551, 664, 0, 0, 0, 0, 603, 693, 0, 0, 0, 0, 627, 759, 0, 0, 0, 0, 695, 760)
+"points": PackedVector2Array(-60.599, 1.76293, 60.599, -1.76293, 695, 760, 0, 0, 0, 0, 741, 749, 0, 0, 0, 0, 745, 427, 44.5455, 60.9091, -44.5455, -60.9091, 733, 57, 0, 0, 0, 0, 374, 54, 18.5633, -95.59, -18.5633, 95.59, 59, 62, 0, 0, 0, 0, 67.5504, 385, 0, 0, 0, 0, 45, 507, -18.679, -90.6314, 18.679, 90.6314, 62, 739, 0, 0, 0, 0, 187, 734, 0, 0, 0, 0, 215, 660, 0, 0, 0, 0, 551, 664, 0, 0, 0, 0, 603, 693, 0, 0, 0, 0, 627, 759, 0, 0, 0, 0, 695, 760)
 }
-point_count = 14
+point_count = 15
 
 [sub_resource type="Curve2D" id="Curve2D_kq58d"]
 _data = {
-"points": PackedVector2Array(-60.599, 1.76293, 60.599, -1.76293, 695, 760, 0, 0, 0, 0, 741, 749, 0, 0, 0, 0, 745, 427, 44.5455, 60.9091, -44.5455, -60.9091, 733, 57, 0, 0, 0, 0, 374, 54, 72.6, -67.76, -72.6, 67.76, 59, 62, 0, 0, 0, 0, 45, 507, -57.9784, -67.6414, 57.9784, 67.6414, 62, 739, 0, 0, 0, 0, 192, 737, 0, 0, 0, 0, 421, 748, 0, 0, 0, 0, 573, 748, 0, 0, 0, 0, 627, 759, 0, 0, 0, 0, 695, 760)
+"points": PackedVector2Array(-60.599, 1.76293, 60.599, -1.76293, 695, 760, 0, 0, 0, 0, 741, 749, 0, 0, 0, 0, 745, 427, 44.5455, 60.9091, -44.5455, -60.9091, 733, 57, 0, 0, 0, 0, 374, 54, 34.9728, -95.59, -34.9728, 95.59, 59, 62, 0, 0, 0, 0, 66.833, 365, 0, 0, 0, 0, 45, 507, -17.0792, -87.0014, 17.0792, 87.0014, 62, 739, 0, 0, 0, 0, 192, 737, 0, 0, 0, 0, 421, 748, 0, 0, 0, 0, 573, 748, 0, 0, 0, 0, 627, 759, 0, 0, 0, 0, 695, 760)
 }
-point_count = 13
+point_count = 14
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_0odxb"]
 radius = 45.8315
@@ -101,14 +101,18 @@ metadata/_edit_vertical_guides_ = [1920.0]
 visible = false
 
 [node name="RoadAsphalt22" type="Sprite2D" parent="track"]
-position = Vector2(399, 406)
-scale = Vector2(1, 0.9975)
+position = Vector2(599, 406)
+scale = Vector2(1.4625, 0.9975)
 texture = ExtResource("1_0odxb")
 
 [node name="track_path_pit" type="Path2D" parent="track"]
+position = Vector2(-10.8318, 0)
+scale = Vector2(1.47789, 1)
 curve = SubResource("Curve2D_cegan")
 
 [node name="track_path" type="Path2D" parent="track"]
+position = Vector2(-10.8626, 0)
+scale = Vector2(1.47925, 1)
 curve = SubResource("Curve2D_kq58d")
 
 [node name="pit_enter" type="Area2D" parent="track"]
@@ -121,14 +125,14 @@ shape = SubResource("CircleShape2D_0odxb")
 metadata/_edit_lock_ = true
 
 [node name="pit_lane" type="Area2D" parent="track"]
-position = Vector2(378, 665)
+position = Vector2(569, 672)
 metadata/pit_enter = true
 
 [node name="shape" type="CollisionShape2D" parent="track/pit_lane"]
 shape = SubResource("CircleShape2D_0odxb")
 
 [node name="pit_exit" type="Area2D" parent="track"]
-position = Vector2(733, 754)
+position = Vector2(986, 760)
 metadata/pit_exit = true
 
 [node name="shape" type="CollisionShape2D" parent="track/pit_exit"]
@@ -136,6 +140,7 @@ shape = SubResource("CircleShape2D_0odxb")
 metadata/_edit_lock_ = true
 
 [node name="track2" type="Node2D" parent="."]
+visible = false
 
 [node name="Figure800001" type="Sprite2D" parent="track2"]
 position = Vector2(590, 347)
@@ -284,7 +289,6 @@ shape = SubResource("CircleShape2D_0odxb")
 metadata/_edit_lock_ = true
 
 [node name="track5" type="Node2D" parent="."]
-visible = false
 position = Vector2(0.0351257, 0.416756)
 
 [node name="Starroad" type="Sprite2D" parent="track5"]

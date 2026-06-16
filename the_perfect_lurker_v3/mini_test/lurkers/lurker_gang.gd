@@ -67,7 +67,7 @@ func _ready():
 	movement_timer.wait_time = 5.0
 	# Every tick writes live standings + movement history snapshots.
 	movement_timer.timeout.connect(_on_movement_timer_timeout)
-	add_child(movement_timer)
+	call_deferred("add_child", movement_timer)
 	movement_timer.start()
 	
 	# Monitor app close

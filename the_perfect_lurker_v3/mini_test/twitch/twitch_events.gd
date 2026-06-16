@@ -80,32 +80,32 @@ func _ready() -> void:
 	reconnect_timer.one_shot = true
 	reconnect_timer.wait_time = RECONNECT_DELAY_SEC
 	reconnect_timer.timeout.connect(_on_reconnect_timer_timeout)
-	add_child(reconnect_timer)
+	call_deferred("add_child", reconnect_timer)
 
 	irc_reconnect_timer = Timer.new()
 	irc_reconnect_timer.one_shot = true
 	irc_reconnect_timer.wait_time = RECONNECT_DELAY_SEC
 	irc_reconnect_timer.timeout.connect(_on_irc_reconnect_timer_timeout)
-	add_child(irc_reconnect_timer)
+	call_deferred("add_child", irc_reconnect_timer)
 
 	eventsub_reconnect_timer = Timer.new()
 	eventsub_reconnect_timer.one_shot = true
 	eventsub_reconnect_timer.wait_time = RECONNECT_DELAY_SEC
 	eventsub_reconnect_timer.timeout.connect(_on_eventsub_reconnect_timer_timeout)
-	add_child(eventsub_reconnect_timer)
+	call_deferred("add_child", eventsub_reconnect_timer)
 
 	health_timer = Timer.new()
 	health_timer.one_shot = false
 	health_timer.wait_time = HEALTHCHECK_INTERVAL_SEC
 	health_timer.timeout.connect(_healthcheck_connection)
-	add_child(health_timer)
+	call_deferred("add_child", health_timer)
 	health_timer.start()
 
 	chat_sync_timer = Timer.new()
 	chat_sync_timer.one_shot = false
 	chat_sync_timer.wait_time = chat_sync_interval_seconds
 	chat_sync_timer.timeout.connect(_on_chat_sync_timer_timeout)
-	add_child(chat_sync_timer)
+	call_deferred("add_child", chat_sync_timer)
 	chat_sync_timer.start()
 	_write_chat_names_snapshot_file()
 
@@ -400,13 +400,13 @@ func _setup_status_label() -> void:
 	status_layer = CanvasLayer.new()
 	status_layer.layer = 100
 	status_layer.name = "twitch_status_layer"
-	add_child(status_layer)
+	call_deferred("add_child", status_layer)
 
 	status_label = Label.new()
 	status_label.name = "twitch_status_label"
 	status_label.text = "Twitch: Disconnected"
 	status_label.position = Vector2(12, 12)
-	status_layer.add_child(status_label)
+	status_layer.call_deferred("add_child", status_label)
 
 func _update_status_label(status_text: String) -> void:
 	if status_label == null:

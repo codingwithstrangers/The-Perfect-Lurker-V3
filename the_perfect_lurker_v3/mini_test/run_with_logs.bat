@@ -3,8 +3,8 @@ setlocal EnableDelayedExpansion
 
 rem Generic EXE launcher with runtime log capture.
 rem - Discovers EXEs (or accepts one as argument)
-rem - Auto-selects freshest valid EXE+PCK pair when no arg is provided
-rem - Requires matching Godot .pck sidecar + close timestamps
+rem - Auto-selects freshest valid EXE build when no arg is provided
+rem - Uses matching Godot .pck sidecar if present, but supports EXE-only builds
 rem - Pipes stdout/stderr to logs\exe_runtime_YYYYMMDD_HHMMSS.log
 
 set "BASE_DIR=%~dp0"
@@ -15,19 +15,18 @@ for /f %%i in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd_HHmmss
 set "LOG_FILE=%LOG_DIR%\exe_runtime_%STAMP%.log"
 
 if "%~1"=="" (
-    rem Collect all valid EXE+PCK pairs for each track, keeping latest by timestamp.
+    rem Collect all EXE builds for each track, keeping the latest build per track.
     set "EXE_COUNT=0"
     
-    for /f "usebackq delims=" %%I in (`powershell -NoProfile -Command "$base='%BASE_DIR%'; $dirs=@((Join-Path $base 'MVP'), $base); $pairs = foreach($d in $dirs){ if(Test-Path $d){ Get-ChildItem -Path $d -Filter *.exe -File | ForEach-Object { $pck=[System.IO.Path]::ChangeExtension($_.FullName,'.pck'); if(Test-Path $pck){ $p=Get-Item -LiteralPath $pck; [pscustomobject]@{ Exe=$_.FullName; ExeTime=$_.LastWriteTimeUtc; PairAge=[math]::Abs(($_.LastWriteTimeUtc-$p.LastWriteTimeUtc).TotalSeconds); TrackNum = if($_.Name -match 'track2') {2} elseif($_.Name -match 'track3') {3} elseif($_.Name -match 'track5') {5} else {0} } } } } }; $valid=$pairs | Where-Object { $_.PairAge -le 600 -and $_.TrackNum -gt 0 } | Group-Object TrackNum | ForEach-Object { $_.Group | Sort-Object ExeTime -Descending | Select-Object -First 1 } | Sort-Object TrackNum; $valid | ForEach-Object { $_.Exe } "`) do (
+    for /f "usebackq delims=" %%I in (`powershell -NoProfile -Command "$base='%BASE_DIR%'; $dirs=@((Join-Path $base 'MVP'), $base); $pairs = foreach($d in $dirs){ if(Test-Path $d){ Get-ChildItem -Path $d -Filter *.exe -File | ForEach-Object { $pck=[System.IO.Path]::ChangeExtension($_.FullName,'.pck'); $trackMatch=[regex]::Match($_.Name,'track(\d+)'); if($trackMatch.Success){ $track=[int]$trackMatch.Groups[1].Value; [pscustomobject]@{ Exe=$_.FullName; ExeTime=$_.LastWriteTimeUtc; Pck=$pck; PckExists=Test-Path $pck; PairAge = if(Test-Path $pck){ $p=Get-Item -LiteralPath $pck; [math]::Abs(($_.LastWriteTimeUtc-$p.LastWriteTimeUtc).TotalSeconds) } else { -1 }; TrackNum = $track } } } } }; $valid=$pairs | Where-Object { $_.TrackNum -gt 0 } | Group-Object TrackNum | ForEach-Object { $_.Group | Sort-Object ExeTime -Descending | Select-Object -First 1 } | Sort-Object TrackNum; $valid | ForEach-Object { $_.Exe } "`) do (
         set /a "EXE_COUNT+=1"
         set "EXE_!EXE_COUNT!=%%~I"
     )
 
     if !EXE_COUNT! equ 0 (
-        echo No valid EXE+PCK pair found in:
+        echo No valid EXE found in:
         echo   %BASE_DIR%MVP
         echo   %BASE_DIR%
-        echo Requirement: matching .pck and EXE/PCK timestamps within 600 seconds.
         echo Usage: run_with_logs.bat "C:\path\to\your.exe"
         pause
         exit /b 1
@@ -35,17 +34,15 @@ if "%~1"=="" (
 
     if !EXE_COUNT! equ 1 (
         set "EXE_PATH=!EXE_1!"
-        echo Auto-selected only valid pair: !EXE_PATH!
+        echo Auto-selected only valid EXE: !EXE_PATH!
     ) else (
         echo Multiple tracks available. Choose one:
-        echo 1. Track 1 ^(track2mvp - latest^)
-        echo 2. Track 2 ^(track3mvp - latest^)
-        echo 3. Track 3 ^(track5mvp - latest^)
-        set /p "CHOICE=Enter track number (1-3): "
+        for /L %%N in (1,1,!EXE_COUNT!) do call echo %%N. %%EXE_%%N%%
+        set /p "CHOICE=Enter selection (1-!EXE_COUNT!): "
         if "!CHOICE!"=="" set "CHOICE=1"
         call set "EXE_PATH=%%EXE_!CHOICE!%%"
         if not defined EXE_PATH (
-            echo Invalid choice. Defaulting to Track 1.
+            echo Invalid choice. Defaulting to the first option.
             set "EXE_PATH=!EXE_1!"
         )
         echo Selected: !EXE_PATH!
@@ -72,29 +69,22 @@ for %%A in ("%EXE_PATH%") do (
 )
 set "LOG_FILE=%LOG_DIR%\exe_runtime_!EXE_BASENAME!_%STAMP%.log"
 
-rem Validate matching .pck sidecar commonly required by Godot exports.
+rem Validate matching .pck sidecar if it exists; allow EXE-only builds.
 for %%A in ("%EXE_PATH%") do (
     set "EXPECTED_PCK=%%~dpA%%~nA.pck"
 )
 if exist "!EXPECTED_PCK!" (
     echo Sidecar found: !EXPECTED_PCK!
+    for /f %%i in ('powershell -NoProfile -Command "$e=Get-Item -LiteralPath ''%EXE_PATH%''; $p=Get-Item -LiteralPath ''!EXPECTED_PCK!''; [int][math]::Abs(($e.LastWriteTimeUtc-$p.LastWriteTimeUtc).TotalSeconds)"') do set "PAIR_AGE_SEC=%%i"
+    if not defined PAIR_AGE_SEC set "PAIR_AGE_SEC=999999"
+    if !PAIR_AGE_SEC! GTR 600 (
+        echo Warning: EXE/PCK timestamps differ by !PAIR_AGE_SEC! seconds.
+        echo This may be a stale leftover PCK, but the launcher will continue.
+    )
 ) else (
-    echo Error: matching PCK not found: !EXPECTED_PCK!
-    echo Aborting launch to prevent mismatched build/runtime data.
-    pause
-    exit /b 1
-)
-
-rem Ensure EXE and PCK look like the same build generation (close write times).
-for /f %%i in ('powershell -NoProfile -Command "$e=Get-Item -LiteralPath ''%EXE_PATH%''; $p=Get-Item -LiteralPath ''!EXPECTED_PCK!''; [int][math]::Abs(($e.LastWriteTimeUtc-$p.LastWriteTimeUtc).TotalSeconds)"') do set "PAIR_AGE_SEC=%%i"
-if not defined PAIR_AGE_SEC set "PAIR_AGE_SEC=999999"
-if !PAIR_AGE_SEC! GTR 600 (
-    echo Error: EXE/PCK timestamps differ by !PAIR_AGE_SEC! seconds.
-    echo This usually means you are launching a stale or mismatched build pair.
-    echo EXE: %EXE_PATH%
-    echo PCK: !EXPECTED_PCK!
-    pause
-    exit /b 1
+    echo No matching PCK sidecar found: !EXPECTED_PCK!
+    echo Assuming single-file EXE build.
+    set "PAIR_AGE_SEC=0"
 )
 
 echo Running: %EXE_PATH%

@@ -1,5 +1,5 @@
-thekingtroop
-Place: 3
-Points: 507
-Rival: theyagich
+N/A
+Place: N/A
+Points: 0
+Rival: N/A
 Bully: N/A
