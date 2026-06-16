@@ -29,14 +29,16 @@ func _ready() -> void:
 	
 	_populate_tracks()
 	set_process_input(true)
-	_show_track_selection_ui()
+	# The old fallback track selection UI is disabled because the newer UI now handles track choice.
 
 func _populate_tracks() -> void:
 	if tracks.is_empty():
 		tracks = [
+			get_node("../../track"),
 			get_node("../../track2"),
 			get_node("../../track3"),
-			get_node("../../track")
+			get_node("../../track4"),
+			get_node("../../track5")
 		]
 
 func _input(event: InputEvent) -> void:
